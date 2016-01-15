@@ -11,6 +11,11 @@ void msp_init(void)
 {
 	WDTCTL = WDTPW | WDTHOLD;
 
+	CSCTL0_H = CSKEY_H;
+	CSCTL1 = DCORSEL | DCOFSEL_4;
+	CSCTL3 = DIVA_0 | DIVS__16 | DIVM__1;
+	CSCTL0_H = 0;
+
 	/* configure pins for SPI */
 	P1SEL0 |= (BIT4 | BIT5 | BIT6 | BIT7);		// P1.6 = UCB0MOSI
 	P1SEL1 &= ~(BIT4 | BIT5 | BIT6 | BIT7); 	// P1.7 = UCB0MISO
@@ -35,9 +40,9 @@ void msp_init(void)
 
 	/* set up UART */
 	UCA0CTLW0 = UCSWRST;
-	UCA0CTLW0 |= UCSSEL__SMCLK;
-	UCA0BRW   |= 6; 					// baud rate: 9600
-	UCA0MCTLW |= 0x2081;				/* WE NEED TO CHANGE THIS TO SOMETHING FASTER */
+	UCA0CTLW0 |= UCSSEL__SMCLK;			// 1 MHz baud
+	UCA0BRW = 1;
+	UCA0MCTLW = 0;
 	UCA0CTLW0 &= ~UCSWRST;
 }
 
