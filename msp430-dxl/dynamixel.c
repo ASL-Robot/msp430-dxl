@@ -68,14 +68,8 @@ uint16_t checksum_gen(uint64_t packet)
 		else
 		{
 			x ^= 1;
-			uint8_t len;
-			uint16_t crc_accum, i, j;
-			if (GET_PARAM(packet) == 0x00)
-				len = 0x03;
-			else if (GET_INST(packet) == READ)
-				len = 0x07;
-			else
-				len = GET_PARAM(packet) + 0x04;
+			uint8_t len = GET_PARAM(packet) + 4;		// if ping or action, this should overflow: 0xFF + 4 = 0x03.
+			uint16_t crc_accum = 0, i, j;
 
 			uint8_t tx[] = { 0xFF, 0xFF, 0xFD, 0x00, GET_ID(packet), len, 0x00, GET_INST(packet),
 					GET_REG(packet), 0x00, GET_1(packet), GET_2(packet), GET_3(packet),
@@ -110,14 +104,8 @@ uint16_t checksum_gen(uint64_t packet)
 
 	else
 	{
-		uint8_t len;
-		uint16_t crc_accum, i, j;
-		if (GET_PARAM(packet) == 0x00)
-			len = 0x03;
-		else if (GET_INST(packet) == READ)
-			len = 0x07;
-		else
-			len = GET_PARAM(packet) + 0x04;
+		uint8_t len = GET_PARAM(packet) + 4;		// if ping or action, this should overflow: 0xFF + 4 = 0x03.
+		uint16_t crc_accum = 0, i, j;
 
 		uint8_t tx[] = { 0xFF, 0xFF, 0xFD, 0x00, GET_ID(packet), len, 0x00, GET_INST(packet),
 				GET_REG(packet), 0x00, GET_1(packet), GET_2(packet), GET_3(packet),
@@ -162,53 +150,53 @@ void motor_write(uint64_t packet)
 			while(!(UCA0IFG & UCTXIFG));
 			UCA0TXBUF = GET_INST(packet);
 
-			switch(GET_INST(packet))
+			switch(GET_PARAM(packet))
 			{
-				case PING:
-				case ACTION:
+				case 0:
 					while(!(UCA0IFG & UCTXIFG));
 					UCA0TXBUF = (uint8_t)checksum_gen(packet);
 					break;
-				case READ:
+				case 2:
 					while(!(UCA0IFG & UCTXIFG));
-					UCA0TXBUF = GET_REG(packet);	// register to write to
+					UCA0TXBUF = GET_REG(packet);
 					while(!(UCA0IFG & UCTXIFG));
-					UCA0TXBUF = GET_1(packet);		// write parameter
+					UCA0TXBUF = GET_1(packet);
 					while(!(UCA0IFG & UCTXIFG));
 					UCA0TXBUF = (uint8_t)checksum_gen(packet);
 					break;
-				case REG_WRITE:
-				case WRITE:
+				case 3:
 					while(!(UCA0IFG & UCTXIFG));
-					UCA0TXBUF = GET_REG(packet);	// register to write to
+					UCA0TXBUF = GET_REG(packet);
 					while(!(UCA0IFG & UCTXIFG));
-					switch(GET_PARAM(packet))
-					{
-						case 2:
-							UCA0TXBUF = GET_1(packet);
-							break;
-						case 3:
-							UCA0TXBUF = GET_1(packet);	// write first parameter
-							while(!(UCA0IFG & UCTXIFG));
-							UCA0TXBUF = GET_2(packet);	// write second parameter
-							break;
-						case 4:
-							UCA0TXBUF = GET_1(packet);	// write first parameter
-							while(!(UCA0IFG & UCTXIFG));
-							UCA0TXBUF = GET_2(packet);	// write second parameter
-							while(!(UCA0IFG & UCTXIFG));
-							UCA0TXBUF = GET_3(packet);	// write third parameter
-							break;
-						case 5:
-							UCA0TXBUF = GET_1(packet);	// write first parameter
-							while(!(UCA0IFG & UCTXIFG));
-							UCA0TXBUF = GET_2(packet);	// write second parameter
-							while(!(UCA0IFG & UCTXIFG));
-							UCA0TXBUF = GET_3(packet);	// write third parameter
-							while(!(UCA0IFG & UCTXIFG));
-							UCA0TXBUF = GET_4(packet);	// write fourth parameter
-							break;
-					}
+					UCA0TXBUF = GET_1(packet);
+					while(!(UCA0IFG & UCTXIFG));
+					UCA0TXBUF = GET_2(packet);
+					while(!(UCA0IFG & UCTXIFG));
+					UCA0TXBUF = (uint8_t)checksum_gen(packet);
+					break;
+				case 4:
+					while(!(UCA0IFG & UCTXIFG));
+					UCA0TXBUF = GET_REG(packet);
+					while(!(UCA0IFG & UCTXIFG));
+					UCA0TXBUF = GET_1(packet);
+					while(!(UCA0IFG & UCTXIFG));
+					UCA0TXBUF = GET_2(packet);
+					while(!(UCA0IFG & UCTXIFG));
+					UCA0TXBUF = GET_3(packet);
+					while(!(UCA0IFG & UCTXIFG));
+					UCA0TXBUF = (uint8_t)checksum_gen(packet);
+					break;
+				case 5:
+					while(!(UCA0IFG & UCTXIFG));
+					UCA0TXBUF = GET_REG(packet);
+					while(!(UCA0IFG & UCTXIFG));
+					UCA0TXBUF = GET_1(packet);
+					while(!(UCA0IFG & UCTXIFG));
+					UCA0TXBUF = GET_2(packet);
+					while(!(UCA0IFG & UCTXIFG));
+					UCA0TXBUF = GET_3(packet);
+					while(!(UCA0IFG & UCTXIFG));
+					UCA0TXBUF = GET_4(packet);
 					while(!(UCA0IFG & UCTXIFG));
 					UCA0TXBUF = (uint8_t)checksum_gen(packet);
 					break;
@@ -236,78 +224,81 @@ void motor_write(uint64_t packet)
 
 			/* send packet length */
 			while(!(UCA0IFG & UCTXIFG));
-			if (GET_PARAM(packet) == 0x00)
-				UCA0TXBUF = 0x03;
-			else if (GET_INST(packet) == READ)
-				UCA0TXBUF = 0x07;
-			else
-				UCA0TXBUF = GET_PARAM(packet) + 4;
+			UCA0TXBUF = GET_PARAM(packet) + 4;		// if ping or action, this should overflow: 0xFF + 4 = 0x03.
 			while(!(UCA0IFG & UCTXIFG));
 			UCA0TXBUF = 0x00;
 
-			/* send instruction type */
+			/* send isntruction */
 			while(!(UCA0IFG & UCTXIFG));
 			UCA0TXBUF = GET_INST(packet);
 
-			switch(GET_INST(packet))
+			switch(GET_PARAM(packet))
 			{
-				case PING:
-				case ACTION:
+				case 0xFF:
 					while(!(UCA0IFG & UCTXIFG));
 					checksum = checksum_gen(packet);
 					UCA0TXBUF = XL_GET_1(checksum);
 					while(!(UCA0IFG & UCTXIFG));
 					UCA0TXBUF = XL_GET_2(checksum);
 					break;
-				case READ:
+				case 2:
 					while(!(UCA0IFG & UCTXIFG));
 					UCA0TXBUF = GET_REG(packet);	// register to write to
 					while(!(UCA0IFG & UCTXIFG));
 					UCA0TXBUF = 0x00;
 					while(!(UCA0IFG & UCTXIFG));
-					UCA0TXBUF = GET_1(packet);		// write parameter
-					while(!(UCA0IFG & UCTXIFG));
-					UCA0TXBUF = 0x00;
+					UCA0TXBUF = GET_1(packet);
 					while(!(UCA0IFG & UCTXIFG));
 					checksum = checksum_gen(packet);
 					UCA0TXBUF = XL_GET_1(checksum);
 					while(!(UCA0IFG & UCTXIFG));
 					UCA0TXBUF = XL_GET_2(checksum);
 					break;
-				case REG_WRITE:
-				case WRITE:
+				case 3:
 					while(!(UCA0IFG & UCTXIFG));
 					UCA0TXBUF = GET_REG(packet);	// register to write to
 					while(!(UCA0IFG & UCTXIFG));
 					UCA0TXBUF = 0x00;
 					while(!(UCA0IFG & UCTXIFG));
-					switch(GET_PARAM(packet))
-					{
-						case 2:
-							UCA0TXBUF = GET_1(packet);
-							break;
-						case 3:
-							UCA0TXBUF = GET_1(packet);	// write first parameter
-							while(!(UCA0IFG & UCTXIFG));
-							UCA0TXBUF = GET_2(packet);	// write second parameter
-							break;
-						case 4:
-							UCA0TXBUF = GET_1(packet);	// write first parameter
-							while(!(UCA0IFG & UCTXIFG));
-							UCA0TXBUF = GET_2(packet);	// write second parameter
-							while(!(UCA0IFG & UCTXIFG));
-							UCA0TXBUF = GET_3(packet);	// write third parameter
-							break;
-						case 5:
-							UCA0TXBUF = GET_1(packet);	// write first parameter
-							while(!(UCA0IFG & UCTXIFG));
-							UCA0TXBUF = GET_2(packet);	// write second parameter
-							while(!(UCA0IFG & UCTXIFG));
-							UCA0TXBUF = GET_3(packet);	// write third parameter
-							while(!(UCA0IFG & UCTXIFG));
-							UCA0TXBUF = GET_4(packet);	// write fourth parameter
-							break;
-					}
+					UCA0TXBUF = GET_1(packet);
+					while(!(UCA0IFG & UCTXIFG));
+					UCA0TXBUF = GET_2(packet);
+					while(!(UCA0IFG & UCTXIFG));
+					checksum = checksum_gen(packet);
+					UCA0TXBUF = XL_GET_1(checksum);
+					while(!(UCA0IFG & UCTXIFG));
+					UCA0TXBUF = XL_GET_2(checksum);
+					break;
+				case 4:
+					while(!(UCA0IFG & UCTXIFG));
+					UCA0TXBUF = GET_REG(packet);	// register to write to
+					while(!(UCA0IFG & UCTXIFG));
+					UCA0TXBUF = 0x00;
+					while(!(UCA0IFG & UCTXIFG));
+					UCA0TXBUF = GET_1(packet);
+					while(!(UCA0IFG & UCTXIFG));
+					UCA0TXBUF = GET_2(packet);
+					while(!(UCA0IFG & UCTXIFG));
+					UCA0TXBUF = GET_3(packet);
+					while(!(UCA0IFG & UCTXIFG));
+					checksum = checksum_gen(packet);
+					UCA0TXBUF = XL_GET_1(checksum);
+					while(!(UCA0IFG & UCTXIFG));
+					UCA0TXBUF = XL_GET_2(checksum);
+					break;
+				case 5:
+					while(!(UCA0IFG & UCTXIFG));
+					UCA0TXBUF = GET_REG(packet);	// register to write to
+					while(!(UCA0IFG & UCTXIFG));
+					UCA0TXBUF = 0x00;
+					while(!(UCA0IFG & UCTXIFG));
+					UCA0TXBUF = GET_1(packet);
+					while(!(UCA0IFG & UCTXIFG));
+					UCA0TXBUF = GET_2(packet);
+					while(!(UCA0IFG & UCTXIFG));
+					UCA0TXBUF = GET_3(packet);
+					while(!(UCA0IFG & UCTXIFG));
+					UCA0TXBUF = GET_4(packet);
 					while(!(UCA0IFG & UCTXIFG));
 					checksum = checksum_gen(packet);
 					UCA0TXBUF = XL_GET_1(checksum);
@@ -338,53 +329,53 @@ void motor_write(uint64_t packet)
 		while(!(UCA0IFG & UCTXIFG));
 		UCA0TXBUF = GET_INST(packet);
 
-		switch(GET_INST(packet))
+		switch(GET_PARAM(packet))
 		{
-			case PING:
-			case ACTION:
+			case 0:
 				while(!(UCA0IFG & UCTXIFG));
 				UCA0TXBUF = (uint8_t)checksum_gen(packet);
 				break;
-			case READ:
+			case 2:
 				while(!(UCA0IFG & UCTXIFG));
-				UCA0TXBUF = GET_REG(packet);	// register to write to
+				UCA0TXBUF = GET_REG(packet);
 				while(!(UCA0IFG & UCTXIFG));
-				UCA0TXBUF = GET_1(packet);		// write parameter
+				UCA0TXBUF = GET_1(packet);
 				while(!(UCA0IFG & UCTXIFG));
 				UCA0TXBUF = (uint8_t)checksum_gen(packet);
 				break;
-			case REG_WRITE:
-			case WRITE:
+			case 3:
 				while(!(UCA0IFG & UCTXIFG));
-				UCA0TXBUF = GET_REG(packet);	// register to write to
+				UCA0TXBUF = GET_REG(packet);
 				while(!(UCA0IFG & UCTXIFG));
-				switch(GET_PARAM(packet))
-				{
-					case 2:
-						UCA0TXBUF = GET_1(packet);
-						break;
-					case 3:
-						UCA0TXBUF = GET_1(packet);	// write first parameter
-						while(!(UCA0IFG & UCTXIFG));
-						UCA0TXBUF = GET_2(packet);	// write second parameter
-						break;
-					case 4:
-						UCA0TXBUF = GET_1(packet);	// write first parameter
-						while(!(UCA0IFG & UCTXIFG));
-						UCA0TXBUF = GET_2(packet);	// write second parameter
-						while(!(UCA0IFG & UCTXIFG));
-						UCA0TXBUF = GET_3(packet);	// write third parameter
-						break;
-					case 5:
-						UCA0TXBUF = GET_1(packet);	// write first parameter
-						while(!(UCA0IFG & UCTXIFG));
-						UCA0TXBUF = GET_2(packet);	// write second parameter
-						while(!(UCA0IFG & UCTXIFG));
-						UCA0TXBUF = GET_3(packet);	// write third parameter
-						while(!(UCA0IFG & UCTXIFG));
-						UCA0TXBUF = GET_4(packet);	// write fourth parameter
-						break;
-				}
+				UCA0TXBUF = GET_1(packet);
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = GET_2(packet);
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = (uint8_t)checksum_gen(packet);
+				break;
+			case 4:
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = GET_REG(packet);
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = GET_1(packet);
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = GET_2(packet);
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = GET_3(packet);
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = (uint8_t)checksum_gen(packet);
+				break;
+			case 5:
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = GET_REG(packet);
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = GET_1(packet);
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = GET_2(packet);
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = GET_3(packet);
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = GET_4(packet);
 				while(!(UCA0IFG & UCTXIFG));
 				UCA0TXBUF = (uint8_t)checksum_gen(packet);
 				break;
@@ -411,78 +402,81 @@ void motor_write(uint64_t packet)
 
 		/* send packet length */
 		while(!(UCA0IFG & UCTXIFG));
-		if (GET_PARAM(packet) == 0x00)
-			UCA0TXBUF = 0x03;
-		else if (GET_INST(packet) == READ)
-			UCA0TXBUF = 0x07;
-		else
-			UCA0TXBUF = GET_PARAM(packet) + 4;
+		UCA0TXBUF = GET_PARAM(packet) + 4;		// if ping or action, this should overflow: 0xFF + 4 = 0x03.
 		while(!(UCA0IFG & UCTXIFG));
 		UCA0TXBUF = 0x00;
 
-		/* send instruction type */
-		while(!(UCA0IFG & UCTXIFG));
+		/* send instruction */
+		while(!(UCA0IFG & UCTXIFG))
 		UCA0TXBUF = GET_INST(packet);
 
-		switch(GET_INST(packet))
+		switch(GET_PARAM(packet))
 		{
-			case PING:
-			case ACTION:
+			case 0xFF:
 				while(!(UCA0IFG & UCTXIFG));
 				checksum = checksum_gen(packet);
 				UCA0TXBUF = XL_GET_1(checksum);
 				while(!(UCA0IFG & UCTXIFG));
 				UCA0TXBUF = XL_GET_2(checksum);
 				break;
-			case READ:
+			case 2:
 				while(!(UCA0IFG & UCTXIFG));
 				UCA0TXBUF = GET_REG(packet);	// register to write to
 				while(!(UCA0IFG & UCTXIFG));
 				UCA0TXBUF = 0x00;
 				while(!(UCA0IFG & UCTXIFG));
-				UCA0TXBUF = GET_1(packet);		// write parameter
-				while(!(UCA0IFG & UCTXIFG));
-				UCA0TXBUF = 0x00;
+				UCA0TXBUF = GET_1(packet);
 				while(!(UCA0IFG & UCTXIFG));
 				checksum = checksum_gen(packet);
 				UCA0TXBUF = XL_GET_1(checksum);
 				while(!(UCA0IFG & UCTXIFG));
 				UCA0TXBUF = XL_GET_2(checksum);
 				break;
-			case REG_WRITE:
-			case WRITE:
+			case 3:
 				while(!(UCA0IFG & UCTXIFG));
 				UCA0TXBUF = GET_REG(packet);	// register to write to
 				while(!(UCA0IFG & UCTXIFG));
 				UCA0TXBUF = 0x00;
 				while(!(UCA0IFG & UCTXIFG));
-				switch(GET_PARAM(packet))
-				{
-					case 2:
-						UCA0TXBUF = GET_1(packet);
-						break;
-					case 3:
-						UCA0TXBUF = GET_1(packet);	// write first parameter
-						while(!(UCA0IFG & UCTXIFG));
-						UCA0TXBUF = GET_2(packet);	// write second parameter
-						break;
-					case 4:
-						UCA0TXBUF = GET_1(packet);	// write first parameter
-						while(!(UCA0IFG & UCTXIFG));
-						UCA0TXBUF = GET_2(packet);	// write second parameter
-						while(!(UCA0IFG & UCTXIFG));
-						UCA0TXBUF = GET_3(packet);	// write third parameter
-						break;
-					case 5:
-						UCA0TXBUF = GET_1(packet);	// write first parameter
-						while(!(UCA0IFG & UCTXIFG));
-						UCA0TXBUF = GET_2(packet);	// write second parameter
-						while(!(UCA0IFG & UCTXIFG));
-						UCA0TXBUF = GET_3(packet);	// write third parameter
-						while(!(UCA0IFG & UCTXIFG));
-						UCA0TXBUF = GET_4(packet);	// write fourth parameter
-						break;
-				}
+				UCA0TXBUF = GET_1(packet);
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = GET_2(packet);
+				while(!(UCA0IFG & UCTXIFG));
+				checksum = checksum_gen(packet);
+				UCA0TXBUF = XL_GET_1(checksum);
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = XL_GET_2(checksum);
+				break;
+			case 4:
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = GET_REG(packet);	// register to write to
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = 0x00;
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = GET_1(packet);
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = GET_2(packet);
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = GET_3(packet);
+				while(!(UCA0IFG & UCTXIFG));
+				checksum = checksum_gen(packet);
+				UCA0TXBUF = XL_GET_1(checksum);
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = XL_GET_2(checksum);
+				break;
+			case 5:
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = GET_REG(packet);	// register to write to
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = 0x00;
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = GET_1(packet);
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = GET_2(packet);
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = GET_3(packet);
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = GET_4(packet);
 				while(!(UCA0IFG & UCTXIFG));
 				checksum = checksum_gen(packet);
 				UCA0TXBUF = XL_GET_1(checksum);
@@ -491,8 +485,7 @@ void motor_write(uint64_t packet)
 				break;
 		}
 	}
-	while(!(UCA0IFG & UCTXIFG));
-	__delay_cycles(1100);
+	while(UCA0STATW & UCBUSY);
 	P3OUT &= ~BIT2;								// give the bus to the motor
 }
 
@@ -820,8 +813,17 @@ uint8_t ping(uint8_t id)
 	uint64_t packet = 0;
 	if (id == 0xFE)
 		trap_error(0x40);
-	SET_ID(packet, id);
-	SET_INST(packet, PING);
+	else if (id < 0x07)
+	{
+		SET_ID(packet, id);
+		SET_INST(packet, PING);
+	}
+	else
+	{
+		SET_ID(packet, id);
+		SET_INST(packet, PING);
+		SET_PARAM(packet, 0xFF);
+	}
 	if (GET_ID(motor_read(packet)) == id)
 		return 1;
 	return 0;
@@ -888,7 +890,7 @@ uint16_t curr_position(uint8_t id)
 	{
 		SET_ID(packet, id);
 		SET_REG(packet, XL_CURR_POS);
-		SET_PARAM(packet, 2);
+		SET_PARAM(packet, 3);
 		SET_INST(packet, READ);
 		SET_1(packet, 0x02);
 		return motor_read(packet);
@@ -915,8 +917,19 @@ void register_goal_position(uint8_t id, uint16_t position, uint16_t speed)
 void action(uint8_t id)
 {
 	uint64_t packet = 0;
-	SET_ID(packet, id);
-	SET_INST(packet, ACTION);
+	if (id == 0xFE)
+		trap_error(0x40);
+	else if (id < 0x07)
+	{
+		SET_ID(packet, id);
+		SET_INST(packet, ACTION);
+	}
+	else
+	{
+		SET_ID(packet, id);
+		SET_INST(packet, PING);
+		SET_PARAM(packet, 0xFF);
+	}
 	motor_write(packet);
 	if (id == 0xFE)
 		motor_write(packet);
