@@ -89,9 +89,9 @@
 uint16_t checksum_gen(uint64_t packet);						// for comm. one
 
 /* read/write primitives */
-void motor_write(uint64_t packet);
+void motor_write(uint64_t packet, uint8_t crc_l, uint8_t crc_h);
 void sync_write(uint8_t *id, uint16_t *position, uint16_t *speed, uint8_t len);
-uint16_t motor_read(uint64_t packet);
+uint16_t motor_read(uint64_t packet, uint8_t crc_l, uint8_t crc_h);
 
 /* initialization APIs */
 void set_id(uint8_t old_id, uint8_t new_id);

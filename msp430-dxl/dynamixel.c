@@ -121,7 +121,7 @@ uint16_t checksum_gen(uint64_t packet)
 	return 0;
 }
 
-void motor_write(uint64_t packet)
+void motor_write(uint64_t packet, uint8_t crc_l, uint8_t crc_h)
 {
 	while(UCA0STATW & UCBUSY);			// ensure not busy
 	uint8_t i;
@@ -155,7 +155,7 @@ void motor_write(uint64_t packet)
 			if (GET_INST(packet) == PING || GET_INST(packet) == ACTION)
 			{
 				while(!(UCA0IFG & UCTXIFG));
-				UCA0TXBUF = (uint8_t)checksum_gen(packet);
+				UCA0TXBUF = crc_l;
 			}
 			else
 			{
@@ -171,14 +171,13 @@ void motor_write(uint64_t packet)
 
 				/* send checksum */
 				while(!(UCA0IFG & UCTXIFG));
-				UCA0TXBUF = (uint8_t)checksum_gen(packet);
+				UCA0TXBUF = crc_l;
 			}
 		}
 
 		else
 		{
 			x ^= 1;
-			uint16_t checksum;
 
 			/* send start condition */
 			while(!(UCA0IFG & UCTXIFG));
@@ -208,10 +207,9 @@ void motor_write(uint64_t packet)
 			if (GET_INST(packet) == PING || GET_INST(packet) == ACTION)
 			{
 				while(!(UCA0IFG & UCTXIFG));
-				checksum = checksum_gen(packet);
-				UCA0TXBUF = XL_GET_1(checksum);
+				UCA0TXBUF = crc_l;
 				while(!(UCA0IFG & UCTXIFG));
-				UCA0TXBUF = XL_GET_2(checksum);
+				UCA0TXBUF = crc_h;
 			}
 			else
 			{
@@ -229,10 +227,9 @@ void motor_write(uint64_t packet)
 
 				/* send checksum */
 				while(!(UCA0IFG & UCTXIFG));
-				checksum = checksum_gen(packet);
-				UCA0TXBUF = XL_GET_1(checksum);
+				UCA0TXBUF = crc_l;
 				while(!(UCA0IFG & UCTXIFG));
-				UCA0TXBUF = XL_GET_2(checksum);
+				UCA0TXBUF = crc_h;
 			}
 		}
 	}
@@ -261,7 +258,7 @@ void motor_write(uint64_t packet)
 		if (GET_INST(packet) == PING || GET_INST(packet) == ACTION)
 		{
 			while(!(UCA0IFG & UCTXIFG));
-			UCA0TXBUF = (uint8_t)checksum_gen(packet);
+			UCA0TXBUF = crc_l;
 		}
 		else
 		{
@@ -277,14 +274,12 @@ void motor_write(uint64_t packet)
 
 			/* send checksum */
 			while(!(UCA0IFG & UCTXIFG));
-			UCA0TXBUF = (uint8_t)checksum_gen(packet);
+			UCA0TXBUF = crc_l;
 		}
 	}
 
 	else
 	{
-		uint16_t checksum;
-
 		/* send start condition */
 		while(!(UCA0IFG & UCTXIFG));
 		UCA0TXBUF = 0xFF;
@@ -313,10 +308,9 @@ void motor_write(uint64_t packet)
 		if (GET_INST(packet) == PING || GET_INST(packet) == ACTION)
 		{
 			while(!(UCA0IFG & UCTXIFG));
-			checksum = checksum_gen(packet);
-			UCA0TXBUF = XL_GET_1(checksum);
+			UCA0TXBUF = crc_l;
 			while(!(UCA0IFG & UCTXIFG));
-			UCA0TXBUF = XL_GET_2(checksum);
+			UCA0TXBUF = crc_h;
 		}
 		else
 		{
@@ -334,25 +328,24 @@ void motor_write(uint64_t packet)
 
 			/* send checksum */
 			while(!(UCA0IFG & UCTXIFG));
-			checksum = checksum_gen(packet);
-			UCA0TXBUF = XL_GET_1(checksum);
+			UCA0TXBUF = crc_l;
 			while(!(UCA0IFG & UCTXIFG));
-			UCA0TXBUF = XL_GET_2(checksum);
+			UCA0TXBUF = crc_h;
 		}
 	}
 	while(UCA0STATW & UCBUSY);
 	P3OUT &= ~BIT2;								// give the bus to the motor
 }
 
-uint16_t motor_read(uint64_t packet)
+uint16_t motor_read(uint64_t packet, uint8_t crc_l, uint8_t crc_h)
 {
 	uint64_t status = GET_ID(packet) << 56; // packet to be returned
 	uint8_t i = 0, temp;
-	motor_write(packet);					// ask to read
+	motor_write(packet, crc_l, crc_h);		// ask to read
 
 	if (GET_ID(packet) < 7)
 	{
-		if (GET_1(packet) == 1)					// asked to read one byte
+		if (GET_1(packet) == 1)				// asked to read one byte
 		{
 			while(i < 7)
 			{
@@ -461,25 +454,37 @@ uint16_t motor_read(uint64_t packet)
 void set_id(uint8_t old_id, uint8_t new_id)
 {
 	uint64_t packet = 0;
+	uint16_t checksum;
+	uint8_t crc_l, crc_h;
 	SET_ID(packet, old_id);
 	SET_REG(packet, ID);
 	SET_PARAM(packet, 2);
 	SET_INST(packet, WRITE);
 	SET_1(packet, new_id);
-	motor_write(packet);
+	checksum = checksum_gen(packet);
+	crc_l = XL_GET_1(checksum);
+	crc_h = XL_GET_2(checksum);
+
+	motor_write(packet, crc_l, crc_h);
 	if (old_id == 0xFE)
-		motor_write(packet);
+		motor_write(packet, crc_l, crc_h);
 }
 
 void set_baud(uint8_t id, uint8_t rate)
 {
 	uint64_t packet = 0;
+	uint16_t checksum;
+	uint8_t crc_l, crc_h;
 	SET_ID(packet, id);
 	SET_REG(packet, BAUD);
 	SET_PARAM(packet, 2);
 	SET_INST(packet, WRITE);
 	SET_1(packet, rate);
-	motor_write(packet);
+	checksum = checksum_gen(packet);
+	crc_l = XL_GET_1(checksum);
+	crc_h = XL_GET_2(checksum);
+
+	motor_write(packet, crc_l, crc_h);
 	if (id == 0xFE)
 	{
 		switch(rate)
@@ -500,7 +505,7 @@ void set_baud(uint8_t id, uint8_t rate)
 				packet &= ~(0xFF);
 				break;
 		}
-		motor_write(packet);
+		motor_write(packet, crc_l, crc_h);
 	}
 }
 
@@ -508,6 +513,8 @@ void set_baud(uint8_t id, uint8_t rate)
 void set_return(uint8_t id, uint8_t level)
 {
 	uint64_t packet = 0;
+	uint16_t checksum;
+	uint8_t crc_l, crc_h;
 	if (id == 0xFE)
 	{
 		SET_ID(packet, id);
@@ -515,10 +522,16 @@ void set_return(uint8_t id, uint8_t level)
 		SET_PARAM(packet, 2);
 		SET_INST(packet, WRITE);
 		SET_1(packet, level);
-		motor_write(packet);
+		checksum = checksum_gen(packet);
+		crc_l = XL_GET_1(checksum);
+		crc_h = XL_GET_2(checksum);
+		motor_write(packet, crc_l, crc_h);
 		packet &= 0xFF00FFFFFFFFFFFF;
 		SET_REG(packet, XL_RETURN);
-		motor_write(packet);
+		checksum = checksum_gen(packet);
+		crc_l = XL_GET_1(checksum);
+		crc_h = XL_GET_2(checksum);
+		motor_write(packet, crc_l, crc_h);
 	}
 	else if (id < 0x07)
 	{
@@ -527,7 +540,10 @@ void set_return(uint8_t id, uint8_t level)
 		SET_PARAM(packet, 2);
 		SET_INST(packet, WRITE);
 		SET_1(packet, level);
-		motor_write(packet);
+		checksum = checksum_gen(packet);
+		crc_l = XL_GET_1(checksum);
+		crc_h = XL_GET_2(checksum);
+		motor_write(packet, crc_l, crc_h);
 	}
 	else
 	{
@@ -536,21 +552,29 @@ void set_return(uint8_t id, uint8_t level)
 		SET_PARAM(packet, 2);
 		SET_INST(packet, WRITE);
 		SET_1(packet, level);
-		motor_write(packet);
+		checksum = checksum_gen(packet);
+		crc_l = XL_GET_1(checksum);
+		crc_h = XL_GET_2(checksum);
+		motor_write(packet, crc_l, crc_h);
 	}
 }
 
 void set_delay(uint8_t id, uint8_t delay)
 {
 	uint64_t packet = 0;
+	uint16_t checksum;
+	uint8_t crc_l, crc_h;
 	SET_ID(packet, id);
 	SET_REG(packet, DELAY);
 	SET_PARAM(packet, 2);
 	SET_INST(packet, WRITE);
 	SET_1(packet, delay);
-	motor_write(packet);
+	checksum = checksum_gen(packet);
+	crc_l = XL_GET_1(checksum);
+	crc_h = XL_GET_2(checksum);
+	motor_write(packet, crc_l, crc_h);
 	if (id == 0xFE)
-		motor_write(packet);
+		motor_write(packet, crc_l, crc_h);
 }
 
 void normalize(uint8_t id)
@@ -561,32 +585,46 @@ void normalize(uint8_t id)
 void torque_enable(uint8_t id)
 {
 	uint64_t packet = 0;
+	uint16_t checksum;
+	uint8_t crc_l, crc_h;
 	SET_ID(packet, id);
 	SET_REG(packet, ENTORQUE);
 	SET_PARAM(packet, 2);
 	SET_INST(packet, WRITE);
 	SET_1(packet, 0x01);
-	motor_write(packet);
+	checksum = checksum_gen(packet);
+	crc_l = XL_GET_1(checksum);
+	crc_h = XL_GET_2(checksum);
+
+	motor_write(packet, crc_l, crc_h);
 	if (id == 0xFE)
-		motor_write(packet);
+		motor_write(packet, crc_l, crc_h);
 }
 
 void torque_disable(uint8_t id)
 {
 	uint64_t packet = 0;
+	uint16_t checksum;
+	uint8_t crc_l, crc_h;
 	SET_ID(packet, id);
 	SET_REG(packet, ENTORQUE);
 	SET_PARAM(packet, 2);
 	SET_INST(packet, WRITE);
 	SET_1(packet, 0x00);
-	motor_write(packet);
+	checksum = checksum_gen(packet);
+	crc_l = XL_GET_1(checksum);
+	crc_h = XL_GET_2(checksum);
+
+	motor_write(packet, crc_l, crc_h);
 	if (id == 0xFE)
-		motor_write(packet);
+		motor_write(packet, crc_l, crc_h);
 }
 
 void set_torque(uint8_t id, uint16_t torque)
 {
 	uint64_t packet = 0;
+	uint16_t checksum;
+	uint8_t crc_l, crc_h;
 	if (id == 0xFE)
 	{
 		SET_ID(packet, id);
@@ -595,10 +633,16 @@ void set_torque(uint8_t id, uint16_t torque)
 		SET_INST(packet, WRITE);
 		SET_1(packet, GET_1(torque));
 		SET_2(packet, GET_2(torque));
-		motor_write(packet);
+		checksum = checksum_gen(packet);
+		crc_l = XL_GET_1(checksum);
+		crc_h = XL_GET_2(checksum);
+		motor_write(packet, crc_l, crc_h);
 		packet &= ~(0x00FF000000000000);
 		SET_REG(packet, XL_TORQUE);
-		motor_write(packet);
+		checksum = checksum_gen(packet);
+		crc_l = XL_GET_1(checksum);
+		crc_h = XL_GET_2(checksum);
+		motor_write(packet, crc_l, crc_h);
 	}
 	else if (id < 0x07)
 	{
@@ -608,7 +652,10 @@ void set_torque(uint8_t id, uint16_t torque)
 		SET_INST(packet, WRITE);
 		SET_1(packet, GET_1(torque));
 		SET_2(packet, GET_2(torque));
-		motor_write(packet);
+		checksum = checksum_gen(packet);
+		crc_l = XL_GET_1(checksum);
+		crc_h = XL_GET_2(checksum);
+		motor_write(packet, crc_l, crc_h);
 	}
 	else
 	{
@@ -618,13 +665,18 @@ void set_torque(uint8_t id, uint16_t torque)
 		SET_INST(packet, WRITE);
 		SET_1(packet, GET_1(torque));
 		SET_2(packet, GET_2(torque));
-		motor_write(packet);
+		checksum = checksum_gen(packet);
+		crc_l = XL_GET_1(checksum);
+		crc_h = XL_GET_2(checksum);
+		motor_write(packet, crc_l, crc_h);
 	}
 }
 
 void joint_mode(uint8_t id)
 {
 	uint64_t packet = 0;
+	uint16_t checksum;
+	uint8_t crc_l, crc_h;
 	if (id == 0xFE)
 	{
 		SET_ID(packet, id);
@@ -634,12 +686,18 @@ void joint_mode(uint8_t id)
 		SET_1(packet, 0x01);
 		SET_3(packet, 0xFF);
 		SET_4(packet, 0x03);
-		motor_write(packet);
+		checksum = checksum_gen(packet);
+		crc_l = XL_GET_1(checksum);
+		crc_h = XL_GET_2(checksum);
+		motor_write(packet, crc_l, crc_h);
 		packet &= ~(0x00FFFF00FFFFFFFF);
 		SET_REG(packet, CONTROL);
 		SET_PARAM(packet, 2);
 		SET_1(packet, 2);
-		motor_write(packet);
+		checksum = checksum_gen(packet);
+		crc_l = XL_GET_1(checksum);
+		crc_h = XL_GET_2(checksum);
+		motor_write(packet, crc_l, crc_h);
 	}
 	else if (id < 0x07)
 	{
@@ -650,7 +708,10 @@ void joint_mode(uint8_t id)
 		SET_1(packet, 0x01);
 		SET_3(packet, 0xFF);
 		SET_4(packet, 0x03);
-		motor_write(packet);
+		checksum = checksum_gen(packet);
+		crc_l = XL_GET_1(checksum);
+		crc_h = XL_GET_2(checksum);
+		motor_write(packet, crc_l, crc_h);
 	}
 	else
 	{
@@ -659,13 +720,18 @@ void joint_mode(uint8_t id)
 		SET_PARAM(packet, 2);
 		SET_INST(packet, WRITE);
 		SET_1(packet, 2);
-		motor_write(packet);
+		checksum = checksum_gen(packet);
+		crc_l = XL_GET_1(checksum);
+		crc_h = XL_GET_2(checksum);
+		motor_write(packet, crc_l, crc_h);
 	}
 }
 
 uint8_t ping(uint8_t id)
 {
 	uint64_t packet = 0;
+	uint16_t checksum;
+	uint8_t crc_l, crc_h;
 	if (id == 0xFE)
 		trap_error(0x40);
 	else if (id < 0x07)
@@ -679,7 +745,11 @@ uint8_t ping(uint8_t id)
 		SET_INST(packet, PING);
 		SET_PARAM(packet, 0xFF);
 	}
-	if (GET_ID(motor_read(packet)) == id)
+	checksum = checksum_gen(packet);
+	crc_l = XL_GET_1(checksum);
+	crc_h = XL_GET_2(checksum);
+
+	if (GET_ID(motor_read(packet, crc_l, crc_h)) == id)
 		return 1;
 	return 0;
 }
@@ -687,33 +757,47 @@ uint8_t ping(uint8_t id)
 void led_on(uint8_t id)
 {
 	uint64_t packet = 0;
+	uint16_t checksum;
+	uint8_t crc_l, crc_h;
 	SET_ID(packet, id);
 	SET_REG(packet, LED);
 	SET_PARAM(packet, 2);
 	SET_INST(packet, WRITE);
 	SET_1(packet, 0x01);
-	motor_write(packet);
+	checksum = checksum_gen(packet);
+	crc_l = XL_GET_1(checksum);
+	crc_h = XL_GET_2(checksum);
+
+	motor_write(packet, crc_l, crc_h);
 	if (id == 0xFE)
-		motor_write(packet);
+		motor_write(packet, crc_l, crc_h);
 }
 
 void led_off(uint8_t id)
 {
 	uint64_t packet = 0;
+	uint16_t checksum;
+	uint8_t crc_l, crc_h;
 	SET_ID(packet, id);
 	SET_REG(packet, LED);
 	SET_PARAM(packet, 2);
 	SET_INST(packet, WRITE);
 	SET_1(packet, 0x00);
-	motor_write(packet);
+	checksum = checksum_gen(packet);
+	crc_l = XL_GET_1(checksum);
+	crc_h = XL_GET_2(checksum);
+
+	motor_write(packet, crc_l, crc_h);
 	if (id == 0xFE)
-		motor_write(packet);
+		motor_write(packet, crc_l, crc_h);
 }
 
 /* performance APIs */
 void goal_position(uint8_t id, uint16_t position, uint16_t speed)
 {
 	uint64_t packet = 0;
+	uint16_t checksum;
+	uint8_t crc_l, crc_h;
 	SET_ID(packet, id);
 	SET_REG(packet, GOAL_POS);
 	SET_PARAM(packet, 5);
@@ -722,14 +806,20 @@ void goal_position(uint8_t id, uint16_t position, uint16_t speed)
 	SET_2(packet, GET_2(position));
 	SET_3(packet, GET_1(speed));
 	SET_4(packet, GET_2(speed));
-	motor_write(packet);
+	checksum = checksum_gen(packet);
+	crc_l = XL_GET_1(checksum);
+	crc_h = XL_GET_2(checksum);
+
+	motor_write(packet, crc_l, crc_h);
 	if (id == 0xFE)
-		motor_write(packet);
+		motor_write(packet, crc_l, crc_h);
 }
 
 uint16_t curr_position(uint8_t id)
 {
 	uint64_t packet = 0;
+	uint16_t checksum;
+	uint8_t crc_l, crc_h;
 	if (id == 0xFE)
 		trap_error(0x40); 			// NOT SUPPOSED TO HAPPEN!
 	else if (id < 0x07)
@@ -739,7 +829,11 @@ uint16_t curr_position(uint8_t id)
 		SET_PARAM(packet, 2);
 		SET_INST(packet, READ);
 		SET_1(packet, 0x02);
-		return motor_read(packet);
+		checksum = checksum_gen(packet);
+		crc_l = XL_GET_1(checksum);
+		crc_h = XL_GET_2(checksum);
+
+		return motor_read(packet, crc_l, crc_h);
 	}
 	else
 	{
@@ -748,7 +842,11 @@ uint16_t curr_position(uint8_t id)
 		SET_PARAM(packet, 3);
 		SET_INST(packet, READ);
 		SET_1(packet, 0x02);
-		return motor_read(packet);
+		checksum = checksum_gen(packet);
+		crc_l = XL_GET_1(checksum);
+		crc_h = XL_GET_2(checksum);
+
+		return motor_read(packet, crc_l, crc_h);
 	}
 	return 0;
 }
@@ -756,6 +854,8 @@ uint16_t curr_position(uint8_t id)
 void register_goal_position(uint8_t id, uint16_t position, uint16_t speed)
 {
 	uint64_t packet = 0;
+	uint16_t checksum;
+	uint8_t crc_l, crc_h;
 	SET_ID(packet, id);
 	SET_REG(packet, GOAL_POS);
 	SET_PARAM(packet, 5);
@@ -764,21 +864,30 @@ void register_goal_position(uint8_t id, uint16_t position, uint16_t speed)
 	SET_2(packet, GET_2(position));
 	SET_3(packet, GET_1(speed));
 	SET_4(packet, GET_2(speed));
-	motor_write(packet);
+	checksum = checksum_gen(packet);
+	crc_l = XL_GET_1(checksum);
+	crc_h = XL_GET_2(checksum);
+
+	motor_write(packet, crc_l, crc_h);
 	if (id == 0xFE)
-		motor_write(packet);
+		motor_write(packet, crc_l, crc_h);
 }
 
 void action(uint8_t id)
 {
 	uint64_t packet = 0;
+	uint16_t checksum;
+	uint8_t crc_l, crc_h;
 	if (id == 0xFE)
 	{
 		SET_ID(packet, id);
 		SET_INST(packet, ACTION);
-		motor_write(packet);
+		checksum = checksum_gen(packet);
+		crc_l = XL_GET_1(checksum);
+		crc_h = XL_GET_2(checksum);
+
+		motor_write(packet, crc_l, crc_h);
 		SET_PARAM(packet, 0xFF);
-		motor_write(packet);
 	}
 	else if (id < 0x07)
 	{
@@ -791,7 +900,11 @@ void action(uint8_t id)
 		SET_INST(packet, PING);
 		SET_PARAM(packet, 0xFF);
 	}
-	motor_write(packet);
+	checksum = checksum_gen(packet);
+	crc_l = XL_GET_1(checksum);
+	crc_h = XL_GET_2(checksum);
+
+	motor_write(packet, crc_l, crc_h);
 }
 
 /* error handling */
