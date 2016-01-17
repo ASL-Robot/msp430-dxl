@@ -467,7 +467,12 @@ void set_id(uint8_t old_id, uint8_t new_id)
 
 	motor_write(packet, crc_l, crc_h);
 	if (old_id == 0xFE)
+	{
+		checksum = checksum_gen(packet);
+		crc_l = XL_GET_1(checksum);
+		crc_h = XL_GET_2(checksum);
 		motor_write(packet, crc_l, crc_h);
+	}
 }
 
 void set_baud(uint8_t id, uint8_t rate)
@@ -487,6 +492,9 @@ void set_baud(uint8_t id, uint8_t rate)
 	motor_write(packet, crc_l, crc_h);
 	if (id == 0xFE)
 	{
+		checksum = checksum_gen(packet);
+		crc_l = XL_GET_1(checksum);
+		crc_h = XL_GET_2(checksum);
 		switch(rate)
 		{
 			case 1:
@@ -574,7 +582,12 @@ void set_delay(uint8_t id, uint8_t delay)
 	crc_h = XL_GET_2(checksum);
 	motor_write(packet, crc_l, crc_h);
 	if (id == 0xFE)
+	{
+		checksum = checksum_gen(packet);
+		crc_l = XL_GET_1(checksum);
+		crc_h = XL_GET_2(checksum);
 		motor_write(packet, crc_l, crc_h);
+	}
 }
 
 void normalize(uint8_t id)
@@ -598,7 +611,12 @@ void torque_enable(uint8_t id)
 
 	motor_write(packet, crc_l, crc_h);
 	if (id == 0xFE)
+	{
+		checksum = checksum_gen(packet);
+		crc_l = XL_GET_1(checksum);
+		crc_h = XL_GET_2(checksum);
 		motor_write(packet, crc_l, crc_h);
+	}
 }
 
 void torque_disable(uint8_t id)
@@ -617,7 +635,12 @@ void torque_disable(uint8_t id)
 
 	motor_write(packet, crc_l, crc_h);
 	if (id == 0xFE)
+	{
+		checksum = checksum_gen(packet);
+		crc_l = XL_GET_1(checksum);
+		crc_h = XL_GET_2(checksum);
 		motor_write(packet, crc_l, crc_h);
+	}
 }
 
 void set_torque(uint8_t id, uint16_t torque)
@@ -770,7 +793,12 @@ void led_on(uint8_t id)
 
 	motor_write(packet, crc_l, crc_h);
 	if (id == 0xFE)
+	{
+		checksum = checksum_gen(packet);
+		crc_l = XL_GET_1(checksum);
+		crc_h = XL_GET_2(checksum);
 		motor_write(packet, crc_l, crc_h);
+	}
 }
 
 void led_off(uint8_t id)
@@ -789,7 +817,12 @@ void led_off(uint8_t id)
 
 	motor_write(packet, crc_l, crc_h);
 	if (id == 0xFE)
+	{
+		checksum = checksum_gen(packet);
+		crc_l = XL_GET_1(checksum);
+		crc_h = XL_GET_2(checksum);
 		motor_write(packet, crc_l, crc_h);
+	}
 }
 
 /* performance APIs */
@@ -812,7 +845,12 @@ void goal_position(uint8_t id, uint16_t position, uint16_t speed)
 
 	motor_write(packet, crc_l, crc_h);
 	if (id == 0xFE)
+	{
+		checksum = checksum_gen(packet);
+		crc_l = XL_GET_1(checksum);
+		crc_h = XL_GET_2(checksum);
 		motor_write(packet, crc_l, crc_h);
+	}
 }
 
 uint16_t curr_position(uint8_t id)
@@ -870,7 +908,12 @@ void register_goal_position(uint8_t id, uint16_t position, uint16_t speed)
 
 	motor_write(packet, crc_l, crc_h);
 	if (id == 0xFE)
+	{
+		checksum = checksum_gen(packet);
+		crc_l = XL_GET_1(checksum);
+		crc_h = XL_GET_2(checksum);
 		motor_write(packet, crc_l, crc_h);
+	}
 }
 
 void action(uint8_t id)
@@ -888,23 +931,31 @@ void action(uint8_t id)
 
 		motor_write(packet, crc_l, crc_h);
 		SET_PARAM(packet, 0xFF);
+		checksum = checksum_gen(packet);
+		crc_l = XL_GET_1(checksum);
+		crc_h = XL_GET_2(checksum);
+		motor_write(packet, crc_l, crc_h);
 	}
 	else if (id < 0x07)
 	{
 		SET_ID(packet, id);
 		SET_INST(packet, ACTION);
+		checksum = checksum_gen(packet);
+		crc_l = XL_GET_1(checksum);
+		crc_h = XL_GET_2(checksum);
+		motor_write(packet, crc_l, crc_h);
+
 	}
 	else
 	{
 		SET_ID(packet, id);
 		SET_INST(packet, PING);
 		SET_PARAM(packet, 0xFF);
+		checksum = checksum_gen(packet);
+		crc_l = XL_GET_1(checksum);
+		crc_h = XL_GET_2(checksum);
+		motor_write(packet, crc_l, crc_h);
 	}
-	checksum = checksum_gen(packet);
-	crc_l = XL_GET_1(checksum);
-	crc_h = XL_GET_2(checksum);
-
-	motor_write(packet, crc_l, crc_h);
 }
 
 /* error handling */
