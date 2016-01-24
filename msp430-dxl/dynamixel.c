@@ -2,6 +2,14 @@
 #include <msp430.h>
 #include "dynamixel.h"
 
+/* for sync_write */
+extern uint8_t sync_ids[19] = { 0 };
+extern uint16_t sync_positions[19] = { 0 };
+extern uint16_t sync_speeds[19] = { 0 };
+
+/* for sync_read, for xl-320s only! */
+extern uint16_t sync_readings[19] = { 0 };
+
 /* lookup table for xl-320 checksum */
 #pragma PERSISTENT(lookup)
 static const uint16_t lookup[256] =
@@ -335,6 +343,97 @@ void motor_write(uint64_t packet, uint8_t crc_l, uint8_t crc_h)
 	}
 	while(UCA0STATW & UCBUSY);
 	P3OUT &= ~BIT2;								// give the bus to the motor
+}
+
+
+void sync_write(uint8_t len)
+{
+	uint8_t i, mode, split, length;
+	uint16_t checksum = 0;
+
+	if (sync_ids[len-1] < 0x07)
+		mode = 0;
+	else if (sync_ids[0] >= 0x07)
+		mode = 1;
+	else
+	{
+		mode = 2;
+		for (i = 0; i < len; i++)
+		{
+			if (sync_ids[i] >= 0x07)
+			{
+				split = i;
+				break;
+			}
+		}
+	}
+
+	switch(mode)
+	{
+		case 0:				// communication protocol one
+			length = (len*5) + 4;
+			checksum += 0xFE + GOAL_POS + SYNC_WRITE + length + 4;
+
+			/* send start condition */
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = 0xFF;
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = 0xFF;
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = 0xFE;
+
+			/* send length */
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = length;
+
+			/* send instruction */
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = SYNC_WRITE;
+
+			/* send register to write to */
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = GOAL_POS; 	// should always be this
+
+			/* send number of packets per id */
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = 0x04;		// should always be four
+
+			/* sync write time! */
+			for (i = 0; i < len; i++)
+			{
+				/* send id */
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = sync_ids[i];
+				checksum += sync_ids[i];
+
+				/* send position */
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = XL_GET_1(sync_positions[i]);
+				checksum += XL_GET_1(sync_positions[i]);
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = XL_GET_2(sync_positions[i]);
+				checksum += XL_GET_2(sync_positions[i]);
+
+				/* send speed */
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = XL_GET_1(sync_speeds[i]);
+				checksum += XL_GET_1(sync_speeds[i]);
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = XL_GET_2(sync_speeds[i]);
+				checksum += XL_GET_2(sync_speeds[i]);
+			}
+
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = ~checksum;
+			while(UCA0STATW & UCBUSY);
+			P3OUT &= ~BIT2;								// give the bus to the motor
+
+			break;
+		case 1:				// communication protocol two
+			break;
+		case 2: 			// communication protocols one and two
+			break;
+	}
 }
 
 uint16_t motor_read(uint64_t packet, uint8_t crc_l, uint8_t crc_h)
