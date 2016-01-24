@@ -370,7 +370,7 @@ void sync_write(uint8_t len)
 
 	switch(mode)
 	{
-		case 0:				// communication protocol one
+		case 0:									// communication protocol one
 			length = (len*5) + 4;
 			checksum += 0xFE + GOAL_POS + SYNC_WRITE + length + 4;
 
@@ -429,7 +429,63 @@ void sync_write(uint8_t len)
 			P3OUT &= ~BIT2;								// give the bus to the motor
 
 			break;
-		case 1:				// communication protocol two
+		case 1:											// communication protocol two
+			length = (5*len) + 7;
+
+			/* send start condition */
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = 0xFF;
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = 0xFF;
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = 0xFD;
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = 0x00;
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = 0xFE;
+
+			/* send length */
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = length;
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = 0x00;
+
+			/* send instruction */
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = SYNC_WRITE;
+
+			/* write generic information */
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = GOAL_POS;
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = 0x00;
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = 0x04;
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = 0x00;
+
+			/* sync write time! */
+			for (i = 0; i < len; i++)
+			{
+				/* send id */
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = sync_ids[i];
+
+				/* send position */
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = XL_GET_1(sync_positions[i]);
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = XL_GET_2(sync_positions[i]);
+
+				/* send speed */
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = XL_GET_1(sync_speeds[i]);
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = XL_GET_2(sync_speeds[i]);
+			}
+
+			/* NEED TO SEND CHECKSUM! */
+
 			break;
 		case 2: 			// communication protocols one and two
 			break;
