@@ -9,6 +9,14 @@
 
 #include <stdint.h>
 
+/* for sync_write */
+extern uint8_t sync_ids[19];			// holds the ids that need to be written to/read from
+extern uint16_t sync_positions[19];		// holds positions to move to
+extern uint16_t sync_speeds[19];		// holds speeds to move to above positions to
+
+/* for sync_read, for xl-320s only! */
+extern uint16_t sync_readings[19];		// holds current positions of motors from sync_read()
+
 /* register addresses (that i think are relevant) */
 #define ID				3
 #define BAUD			4
@@ -87,10 +95,10 @@
 
 /* checksum generator */
 uint16_t checksum_gen(uint64_t packet);						// for comm. one
+uint16_t sync_checksum(uint64_t packet);								// for synchronous instructions
 
 /* read/write primitives */
 void motor_write(uint64_t packet, uint8_t crc_l, uint8_t crc_h);
-//void sync_write(uint8_t *id, uint16_t *position, uint16_t *speed, uint8_t len);
 void sync_write(uint8_t len); 	// new and improved sync_write()! maybe.
 uint16_t motor_read(uint64_t packet, uint8_t crc_l, uint8_t crc_h);
 

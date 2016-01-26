@@ -3,12 +3,12 @@
 #include "dynamixel.h"
 
 /* for sync_write */
-extern uint8_t sync_ids[19] = { 0 };
-extern uint16_t sync_positions[19] = { 0 };
-extern uint16_t sync_speeds[19] = { 0 };
+uint8_t sync_ids[19] = { 0 };
+uint16_t sync_positions[19] = { 0 };
+uint16_t sync_speeds[19] = { 0 };
 
 /* for sync_read, for xl-320s only! */
-extern uint16_t sync_readings[19] = { 0 };
+uint16_t sync_readings[19] = { 0 };
 
 /* lookup table for xl-320 checksum */
 #pragma PERSISTENT(lookup)
@@ -47,7 +47,6 @@ static const uint16_t lookup[256] =
 	0x0220, 0x8225, 0x822F, 0x022A, 0x823B, 0x023E, 0x0234, 0x8231,
 	0x8213, 0x0216, 0x021C, 0x8219, 0x0208, 0x820D, 0x8207, 0x0202
 };
-
 
 /* checksum generator */
 uint16_t checksum_gen(uint64_t packet)
@@ -127,6 +126,42 @@ uint16_t checksum_gen(uint64_t packet)
     	return crc_accum;
 	}
 	return 0;
+}
+
+uint16_t sync_checksum(uint64_t packet)
+{
+	uint16_t i, j, crc_accum = 0;
+	uint8_t tx[] = { 0xFF, 0xFF, 0xFD, 0x00, GET_ID(packet),
+		         GET_PARAM(packet), 0x00, GET_INST(packet),
+			 GET_REG(packet), 0x00, GET_1(packet), 0x00 };
+	uint8_t info[5*GET_1(packet)];
+
+	switch(GET_INST(packet))
+	{
+		case SYNC_READ:
+			break;
+		case SYNC_WRITE:
+			for (j = 0; j < 5*GET_1(packet); j=j+5)
+			{
+				info[j] = sync_ids[j/5];
+				info[j+1] = XL_GET_1(sync_positions[j/5]);
+				info[j+2] = XL_GET_2(sync_positions[j/5]);
+				info[j+3] = XL_GET_1(sync_speeds[j/5]);
+				info[j+4] = XL_GET_2(sync_speeds[j/5]);
+			}
+
+			for (j = 0; j < GET_PARAM(packet)+5; j++)
+			{
+				if (j < 12)
+					i = ((crc_accum >> 8) ^ tx[j]) & 0xFF;
+				else
+					i = ((crc_accum >> 8) ^ info[j]) & 0xFF;
+				crc_accum = (crc_accum << 8) ^ lookup[i];
+			}
+			return crc_accum;
+		default:
+			trap_error(0x40);
+	}
 }
 
 void motor_write(uint64_t packet, uint8_t crc_l, uint8_t crc_h)
@@ -345,7 +380,6 @@ void motor_write(uint64_t packet, uint8_t crc_l, uint8_t crc_h)
 	P3OUT &= ~BIT2;								// give the bus to the motor
 }
 
-
 void sync_write(uint8_t len)
 {
 	uint8_t i, mode, split, length;
@@ -427,10 +461,16 @@ void sync_write(uint8_t len)
 			UCA0TXBUF = ~checksum;
 			while(UCA0STATW & UCBUSY);
 			P3OUT &= ~BIT2;								// give the bus to the motor
-
 			break;
 		case 1:											// communication protocol two
 			length = (5*len) + 7;
+			uint64_t packet = 0;
+			SET_ID(packet, 0xFE);
+			SET_PARAM(packet, length);
+			SET_REG(packet, GOAL_POS);
+			SET_INST(packet, SYNC_WRITE);
+			SET_1(packet, len);
+			checksum = sync_checksum(packet);
 
 			/* send start condition */
 			while(!(UCA0IFG & UCTXIFG));
@@ -484,8 +524,12 @@ void sync_write(uint8_t len)
 				UCA0TXBUF = XL_GET_2(sync_speeds[i]);
 			}
 
-			/* NEED TO SEND CHECKSUM! */
-
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = XL_GET_1(checksum);
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = XL_GET_2(checksum);
+			while(UCA0STATW & UCBUSY);
+			P3OUT &= ~BIT2;								// give the bus to the motor
 			break;
 		case 2: 			// communication protocols one and two
 			break;
