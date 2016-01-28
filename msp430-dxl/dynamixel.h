@@ -43,8 +43,6 @@ extern uint16_t sync_readings[19];		// holds current positions of motors from sy
 #define ACTION			0x05
 #define SYNC_READ		0x82
 #define SYNC_WRITE 		0x83
-#define BULK_READ		0x92
-#define BULK_WRITE		0x93
 
 /* macro functions/variables that may be helpful */
 /* the send packet layout for the write primitive is as follows:
@@ -92,15 +90,18 @@ extern uint16_t sync_readings[19];		// holds current positions of motors from sy
 #define SET_3(x,y) 		 (x |= (UINT64_C(y) << 16))
 #define SET_2(x,y) 		 (x |= (UINT64_C(y) << 8))
 #define SET_1(x,y)       (x |= UINT64_C(y))
+#define XL_SET_1(x,y)	     (x |= (UINT16_C(y)))
+#define XL_SET_2(x,y)		 (x |= (UINT16_C(y) << 8))
 
 /* checksum generator */
-uint16_t checksum_gen(uint64_t packet);						// for comm. one
-uint16_t sync_checksum(uint64_t packet);								// for synchronous instructions
+uint16_t checksum_gen(uint64_t packet);						// for comm. protocol one
+uint16_t sync_checksum(uint64_t packet);					// for synchronous instructions
 
 /* read/write primitives */
 void motor_write(uint64_t packet, uint8_t crc_l, uint8_t crc_h);
 void sync_write(uint8_t len); 	// new and improved sync_write()! maybe.
 uint16_t motor_read(uint64_t packet, uint8_t crc_l, uint8_t crc_h);
+void sync_read(uint8_t len); 	// only meant for comm. protocol two!
 
 /* initialization APIs */
 void set_id(uint8_t old_id, uint8_t new_id);

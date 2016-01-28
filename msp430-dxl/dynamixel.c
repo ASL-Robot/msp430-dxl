@@ -659,7 +659,7 @@ void sync_write(uint8_t len)
 
 uint16_t motor_read(uint64_t packet, uint8_t crc_l, uint8_t crc_h)
 {
-	uint64_t status = GET_ID(packet) << 56; // packet to be returned
+	uint64_t status = 0;					 // packet to be returned
 	uint8_t i = 0, temp;
 	motor_write(packet, crc_l, crc_h);		// ask to read
 
@@ -767,6 +767,102 @@ uint16_t motor_read(uint64_t packet, uint8_t crc_l, uint8_t crc_h)
 			trap_error(GET_ERROR(status));
 		while(UCA0STATW & UCBUSY);				// ensure everything was received
 		return (uint16_t)(status & 0xFFFF);
+	}
+}
+
+void sync_read(uint8_t len)
+{
+	uint8_t i, j, error, temp;
+	uint16_t checksum;
+	uint64_t packet = 0;
+
+	for (i = 0; i < len; i++)
+	{
+		if (sync_ids[i] < 0x07)
+			trap_error(0x40);
+			return;
+	}
+
+	SET_ID(packet, 0xFE);
+	SET_PARAM(packet, len+7);
+	SET_REG(packet, XL_CURR_POS);
+	SET_INST(packet, SYNC_READ);
+	SET_1(packet, len);
+	checksum = sync_checksum(packet);
+
+	/* send start condition */
+	while(!(UCA0IFG & UCTXIFG));
+	UCA0TXBUF = 0xFF;
+	while(!(UCA0IFG & UCTXIFG));
+	UCA0TXBUF = 0xFF;
+	while(!(UCA0IFG & UCTXIFG));
+	UCA0TXBUF = 0xFD;
+	while(!(UCA0IFG & UCTXIFG));
+	UCA0TXBUF = 0x00;
+
+	/* send id */
+	while(!(UCA0IFG & UCTXIFG));
+	UCA0TXBUF = 0xFE;
+
+	/* send packet length */
+	while(!(UCA0IFG & UCTXIFG));
+	UCA0TXBUF = len + 7;
+	while(!(UCA0IFG & UCTXIFG));
+	UCA0TXBUF = 0x00;
+
+	/* send instruction */
+	while(!(UCA0IFG & UCTXIFG));
+	UCA0TXBUF = SYNC_READ;
+
+	/* send generic info */
+	while(!(UCA0IFG & UCTXIFG));
+	UCA0TXBUF = XL_CURR_POS;
+	while(!(UCA0IFG & UCTXIFG));
+	UCA0TXBUF = 0x00;
+	while(!(UCA0IFG & UCTXIFG));
+	UCA0TXBUF = 0x02;
+	while(!(UCA0IFG & UCTXIFG));
+	UCA0TXBUF = 0x00;
+
+	/* sync read time! */
+	for (i = 0; i < len; i++)
+	{
+		while(!(UCA0IFG & UCTXIFG));
+		UCA0TXBUF = sync_ids[i];
+	}
+
+	while(!(UCA0IFG & UCTXIFG));
+	UCA0TXBUF = XL_GET_1(checksum);
+	while(!(UCA0IFG & UCTXIFG));
+	UCA0TXBUF = XL_GET_2(checksum);
+	while(UCA0STATW & UCBUSY);
+	P3OUT &= ~BIT2;								// give the bus to the motor
+
+	for (i = 0; i < len; i++)
+	{
+		j = 0;
+		while(j < 13)
+		{
+			while(!(UCA0IFG & UCRXIFG));
+			temp = UCA0RXBUF;
+			j++;
+			switch (j)
+			{
+				case 9:
+					error = temp;
+					break;
+				case 10:
+					XL_SET_1(sync_readings[j], temp);	// first parameter return
+					break;
+				case 11:
+					XL_SET_2(sync_readings[j], temp);	// second parameter return
+					break;
+				default:
+					break;					// discard
+			}
+		}
+		if (error)
+			trap_error(0x40);
 	}
 }
 
