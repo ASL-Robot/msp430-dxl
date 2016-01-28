@@ -532,6 +532,127 @@ void sync_write(uint8_t len)
 			P3OUT &= ~BIT2;								// give the bus to the motor
 			break;
 		case 2: 			// communication protocols one and two
+			length = (len*5) + 4;
+			checksum += 0xFE + GOAL_POS + SYNC_WRITE + length + 4;
+			//uint64_t packet = 0;
+			uint16_t checksum_1;
+			SET_ID(packet, 0xFE);
+			SET_PARAM(packet, length+3);
+			SET_REG(packet, GOAL_POS);
+			SET_INST(packet, SYNC_WRITE);
+			SET_1(packet, len);
+			checksum_1 = sync_checksum(packet);
+
+			/* send start condition */
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = 0xFF;
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = 0xFF;
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = 0xFE;
+
+			/* send length */
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = length;
+
+			/* send instruction */
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = SYNC_WRITE;
+
+			/* send register to write to */
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = GOAL_POS; 	// should always be this
+
+			/* send number of packets per id */
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = 0x04;		// should always be four
+
+			/* sync write time! */
+			for (i = 0; i < split; i++)
+			{
+				/* send id */
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = sync_ids[i];
+				checksum += sync_ids[i];
+
+				/* send position */
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = XL_GET_1(sync_positions[i]);
+				checksum += XL_GET_1(sync_positions[i]);
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = XL_GET_2(sync_positions[i]);
+				checksum += XL_GET_2(sync_positions[i]);
+
+				/* send speed */
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = XL_GET_1(sync_speeds[i]);
+				checksum += XL_GET_1(sync_speeds[i]);
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = XL_GET_2(sync_speeds[i]);
+				checksum += XL_GET_2(sync_speeds[i]);
+			}
+
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = ~checksum;
+
+			/* send start condition */
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = 0xFF;
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = 0xFF;
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = 0xFD;
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = 0x00;
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = 0xFE;
+
+			/* send length */
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = length;
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = 0x00;
+
+			/* send instruction */
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = SYNC_WRITE;
+
+			/* write generic information */
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = GOAL_POS;
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = 0x00;
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = 0x04;
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = 0x00;
+
+			/* sync write time! */
+			for (i = split; i < len; i++)
+			{
+				/* send id */
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = sync_ids[i];
+
+				/* send position */
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = XL_GET_1(sync_positions[i]);
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = XL_GET_2(sync_positions[i]);
+
+				/* send speed */
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = XL_GET_1(sync_speeds[i]);
+				while(!(UCA0IFG & UCTXIFG));
+				UCA0TXBUF = XL_GET_2(sync_speeds[i]);
+			}
+
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = XL_GET_1(checksum_1);
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = XL_GET_2(checksum_1);
+			while(UCA0STATW & UCBUSY);
+			P3OUT &= ~BIT2;								// give the bus to the motor
 			break;
 	}
 }
