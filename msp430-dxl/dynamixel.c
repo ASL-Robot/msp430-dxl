@@ -662,6 +662,7 @@ uint16_t motor_read(uint64_t packet, uint8_t crc_l, uint8_t crc_h)
 	uint64_t status = 0;					 // packet to be returned
 	uint8_t i = 0, temp;
 	motor_write(packet, crc_l, crc_h);		// ask to read
+	//temp = UCA0RXBUF;
 
 	if (GET_ID(packet) < 7)
 	{
@@ -742,6 +743,7 @@ uint16_t motor_read(uint64_t packet, uint8_t crc_l, uint8_t crc_h)
 		{
 			while(i < 13)
 			{
+				P4OUT |= BIT0; 					// THIS IS TEST STUFF
 				while(!(UCA0IFG & UCRXIFG));
 				temp = UCA0RXBUF;
 				i++;

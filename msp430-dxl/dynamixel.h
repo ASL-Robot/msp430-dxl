@@ -68,6 +68,7 @@ extern uint16_t sync_readings[19];		// holds current positions of motors from sy
 
 /* getters */
 #define GET_ID(x)		 ((UINT64_C(x) & 0xFF00000000000000) >> 56)
+#define GET_COMM(x) 	 ((UINT64_C(x) & 0x00C0000000000000) >> 54)
 #define GET_REG(x)		 ((UINT64_C(x) & 0x00FF000000000000) >> 48)
 #define GET_ERROR(x) 	 ((UINT64_C(x) & 0x00FF000000000000) >> 48)
 #define GET_PARAM(x)	 ((UINT64_C(x) & 0x0000FF0000000000) >> 40)
@@ -82,6 +83,7 @@ extern uint16_t sync_readings[19];		// holds current positions of motors from sy
 
 /* setters */
 #define SET_ID(x,y)		 (x |= (UINT64_C(y) << 56))
+#define SET_COMM(x,y)    (x |= (UINT64_C(y) << 54))
 #define SET_REG(x,y)	 (x |= (UINT64_C(y) << 48))
 #define SET_ERROR(x,y)   (x |= (UINT64_C(y) << 48))
 #define SET_PARAM(x,y)   (x |= (UINT64_C(y) << 40))
@@ -92,6 +94,9 @@ extern uint16_t sync_readings[19];		// holds current positions of motors from sy
 #define SET_1(x,y)       (x |= UINT64_C(y))
 #define XL_SET_1(x,y)	     (x |= (UINT16_C(y)))
 #define XL_SET_2(x,y)		 (x |= (UINT16_C(y) << 8))
+
+/* clearers */
+#define CLEAR_COMM(x)    (x &= ~0x00C0000000000000)
 
 /* checksum generator */
 uint16_t checksum_gen(uint64_t packet);						// for comm. protocol one
