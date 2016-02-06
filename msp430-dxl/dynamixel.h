@@ -47,7 +47,8 @@ extern uint16_t sync_readings[19];		// holds current positions of motors from sy
 /* macro functions/variables that may be helpful */
 /* the send packet layout for the write primitive is as follows:
  *		[63:56] - id of motor to read/write to
- *		[55:48] - register to read/write to
+ *		[55]	- communication protocol
+ *		[54:48] - register to read/write to
  *		[47:40] - number of parameters
  *		[39:32] - instruction type
  *		[31:24] - fourth parameter
@@ -68,7 +69,7 @@ extern uint16_t sync_readings[19];		// holds current positions of motors from sy
 
 /* getters */
 #define GET_ID(x)		 ((UINT64_C(x) & 0xFF00000000000000) >> 56)
-#define GET_COMM(x) 	 ((UINT64_C(x) & 0x00C0000000000000) >> 54)
+#define GET_COMM(x) 	 ((UINT64_C(x) & 0x0080000000000000) >> 55)
 #define GET_REG(x)		 ((UINT64_C(x) & 0x00FF000000000000) >> 48)
 #define GET_ERROR(x) 	 ((UINT64_C(x) & 0x00FF000000000000) >> 48)
 #define GET_PARAM(x)	 ((UINT64_C(x) & 0x0000FF0000000000) >> 40)
@@ -80,23 +81,19 @@ extern uint16_t sync_readings[19];		// holds current positions of motors from sy
 #define XL_GET_2(x) 		 ((UINT16_C(x) & 0xFF00) >> 8)    // get second parameter
 #define XL_GET_1(x)          (UINT16_C(x) & 0xFF)            // get first parameter
 
-
-/* setters */
-#define SET_ID(x,y)		 (x |= (UINT64_C(y) << 56))
-#define SET_COMM(x,y)    (x |= (UINT64_C(y) << 54))
-#define SET_REG(x,y)	 (x |= (UINT64_C(y) << 48))
-#define SET_ERROR(x,y)   (x |= (UINT64_C(y) << 48))
-#define SET_PARAM(x,y)   (x |= (UINT64_C(y) << 40))
-#define SET_INST(x,y)    (x |= (UINT64_C(y) << 32))
-#define SET_4(x,y) 		 (x |= (UINT64_C(y) << 24))
-#define SET_3(x,y) 		 (x |= (UINT64_C(y) << 16))
-#define SET_2(x,y) 		 (x |= (UINT64_C(y) << 8))
-#define SET_1(x,y)       (x |= UINT64_C(y))
-#define XL_SET_1(x,y)	     (x |= (UINT16_C(y)))
-#define XL_SET_2(x,y)		 (x |= (UINT16_C(y) << 8))
-
-/* clearers */
-#define CLEAR_COMM(x)    (x &= ~0x00C0000000000000)
+/* new setters! */
+#define SET_ID(x,y)		 (x &= (UINT64_C(~(0xFF << 56)) | UINT64_C(y) << 56))
+#define SET_COMM(x,y)    (x &= (UINT64_C(~(0x8 << 55)) | UINT64_C(y) << 55))
+#define SET_REG(x,y)	 (x &= (UINT64_C(~(0xFF << 48)) | UINT64_C(y) << 48))
+#define SET_ERROR(x,y)   (x &= (UINT64_C(~(0xFF << 48)) | UINT64_C(y) << 48))
+#define SET_PARAM(x,y)   (x &= (UINT64_C(~(0xFF << 40)) | UINT64_C(y) << 40))
+#define SET_INST(x,y)    (x &= (UINT64_C(~(0xFF << 32)) | UINT64_C(y) << 32))
+#define SET_4(x,y) 		 (x &= (UINT64_C(~(0xFF << 24)) | UINT64_C(y) << 24))
+#define SET_3(x,y) 		 (x &= (UINT64_C(~(0xFF << 16)) | UINT64_C(y) << 16))
+#define SET_2(x,y) 		 (x &= (UINT64_C(~(0xFF << 8)) | UINT64_C(y) << 8))
+#define SET_1(x,y)       (x &= (UINT64_C(~0xFF)) | UINT64_C(y))
+#define XL_SET_1(x,y)	 (x &= (UINT16_C(~0xFF)) | UINT16_C(y))
+#define XL_SET_2(x,y)	 (x &= (UINT16_C(~(0xFF << 8)) | UINT16_C(y) << 8))
 
 /* checksum generator */
 uint16_t checksum_gen(uint64_t packet);						// for comm. protocol one
