@@ -5,6 +5,7 @@
  */
 
 #include <msp430.h>
+#include "dynamixel.h"
 #include "init.h"
 
 void msp_init(void)
@@ -13,7 +14,7 @@ void msp_init(void)
 
 	CSCTL0_H = CSKEY_H;
 	CSCTL1 = DCORSEL | DCOFSEL_4;
-	CSCTL3 = DIVA_0 | DIVS__16 | DIVM__1;
+	CSCTL3 = DIVA_0 | DIVS__8 | DIVM__2;
 	CSCTL0_H = 0;
 
 	/* configure pins for SPI */
@@ -30,23 +31,39 @@ void msp_init(void)
 	P3DIR  |= BIT2; 					// P3.2 = DIRECTION
 
 	P3OUT  |= BIT2;						// claim the bus
+
 	PM5CTL0 &= ~LOCKLPM5;
 
 	/* set up SPI */
 	UCB0CTLW0 = UCSWRST;
-	UCB0CTLW0 |= UCMODE_1 | UCSYNC;		// active high enable slave
+	UCB0CTLW0 |= UCMSB | UCMODE_2 | UCSYNC;		// active low enable slave
 	UCB0CTLW0 &= ~UCSWRST;
-	UCB0IE |= UCRXIE;					// receive interrupt enable
 
 	/* set up UART */
 	UCA0CTLW0 = UCSWRST;
 	UCA0CTLW0 |= UCSSEL__SMCLK;			// 1 MHz baud
-	UCA0BRW = 1;
+	UCA0BRW = 2;
 	UCA0MCTLW = 0;
 	UCA0CTLW0 &= ~UCSWRST;
 }
 
 void dynamixel_init(void)
 {
-	return;
+//	set_id(0xFE, 0x12);
+//	joint_mode(0x12);
+	//set_return(0x12, 1);
+//	torque_enable(0x16);
+//	torque_enable(0x12);
+
+	//factory_reset(0x16, 2);
+	//factory_reset(0x12, 2);
+
+
+//	led_on(0xFE);
+//	__delay_cycles(100000);
+//	led_off(0xFE);
+
+	//set_id(0xFE, 0x12);
+	//joint_mode(0x12);
+	__no_operation();
 }

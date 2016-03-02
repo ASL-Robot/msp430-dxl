@@ -10,6 +10,9 @@ uint16_t sync_speeds[19] = { 0 };
 /* for sync_read, for xl-320s only! */
 uint16_t sync_readings[19] = { 0 };
 
+/* semaphore */
+uint8_t semaphore = 0;
+
 /* lookup table for xl-320 checksum */
 #pragma PERSISTENT(lookup)
 static const uint16_t lookup[256] =
@@ -91,7 +94,7 @@ uint16_t checksum_gen(uint64_t packet)
 		}
 	}
 
-	else if (GET_ID(packet) < 0x07)
+	else if (GET_ID(packet) < 0x10)
 	{
 		if (GET_INST(packet) == PING || GET_INST(packet) == ACTION)
 			return (~(GET_ID(packet) + 2 + GET_INST(packet)) & 0xFF);
@@ -113,16 +116,30 @@ uint16_t checksum_gen(uint64_t packet)
 	{
 		uint8_t len = GET_PARAM(packet) + 4;		// if ping or action, this should overflow: 0xFF + 4 = 0x03.
 		uint16_t crc_accum = 0, i, j;
-
-		uint8_t tx[] = { 0xFF, 0xFF, 0xFD, 0x00, GET_ID(packet), len, 0x00, GET_INST(packet),
-				GET_REG(packet), 0x00, GET_1(packet), GET_2(packet), GET_3(packet),
-				GET_4(packet) };
-
-		for(j = 0; j < len+5; j++)
+		if (GET_INST(packet) == RESET)
 		{
+			uint8_t tx[] = { 0xFF, 0xFF, 0xFD, 0x00, GET_ID(packet), len, 0x00, GET_INST(packet),
+					GET_1(packet) };
+
+			for (j = 0; j < 9; j++)
+			{
     			i = ((uint16_t)(crc_accum >> 8) ^ tx[j]) & 0xFF;
         		crc_accum = (crc_accum << 8) ^ lookup[i];
-    	}
+			}
+		}
+
+		else
+		{
+			uint8_t tx[] = { 0xFF, 0xFF, 0xFD, 0x00, GET_ID(packet), len, 0x00, GET_INST(packet),
+					GET_REG(packet), 0x00, GET_1(packet), GET_2(packet), GET_3(packet),
+					GET_4(packet) };
+
+			for(j = 0; j < len+5; j++)
+			{
+	    			i = ((uint16_t)(crc_accum >> 8) ^ tx[j]) & 0xFF;
+	        		crc_accum = (crc_accum << 8) ^ lookup[i];
+	    	}
+		}
     	return crc_accum;
 	}
 	return 0;
@@ -134,30 +151,47 @@ uint16_t sync_checksum(uint64_t packet)
 	uint8_t tx[] = { 0xFF, 0xFF, 0xFD, 0x00, GET_ID(packet),
 		         GET_PARAM(packet), 0x00, GET_INST(packet),
 			 GET_REG(packet), 0x00, GET_1(packet), 0x00 };
-	uint8_t info[5*GET_1(packet)];
+	static uint8_t k = 0, l = 0;
 
 	switch(GET_INST(packet))
 	{
 		case SYNC_READ:
 			break;
 		case SYNC_WRITE:
-			for (j = 0; j < 5*GET_1(packet); j=j+5)
-			{
-				info[j] = sync_ids[j/5];
-				info[j+1] = XL_GET_1(sync_positions[j/5]);
-				info[j+2] = XL_GET_2(sync_positions[j/5]);
-				info[j+3] = XL_GET_1(sync_speeds[j/5]);
-				info[j+4] = XL_GET_2(sync_speeds[j/5]);
-			}
-
 			for (j = 0; j < GET_PARAM(packet)+5; j++)
 			{
 				if (j < 12)
-					i = ((crc_accum >> 8) ^ tx[j]) & 0xFF;
+					i = ((uint16_t)(crc_accum >> 8) ^ tx[j]) & 0xFF;
 				else
-					i = ((crc_accum >> 8) ^ info[j]) & 0xFF;
+				{
+					switch(k)
+					{
+						case 0:
+							i = ((uint16_t)(crc_accum >> 8) ^ sync_ids[l]) & 0xFF;
+							k++;
+							break;
+						case 1:
+							i = ((uint16_t)(crc_accum >> 8) ^ XL_GET_1(sync_positions[l])) & 0xFF;
+							k++;
+							break;
+						case 2:
+							i = ((uint16_t)(crc_accum >> 8) ^ XL_GET_2(sync_positions[l])) & 0xFF;
+							k++;
+							break;
+						case 3:
+							i = ((uint16_t)(crc_accum >> 8) ^ XL_GET_1(sync_speeds[l])) & 0xFF;
+							k++;
+							break;
+						case 4:
+							i = ((uint16_t)(crc_accum >> 8) ^ XL_GET_2(sync_speeds[l])) & 0xFF;
+							k = 0;
+							l++;
+							break;
+					}
+				}
 				crc_accum = (crc_accum << 8) ^ lookup[i];
 			}
+			l = 0;
 			return crc_accum;
 		default:
 			trap_error(0x40);
@@ -277,7 +311,7 @@ void motor_write(uint64_t packet, uint8_t crc_l, uint8_t crc_h)
 		}
 	}
 
-	else if (GET_ID(packet) < 0x07)
+	else if (GET_ID(packet) < 0x10)
 	{
 		/* send start condition */
 		while(!(UCA0IFG & UCTXIFG));
@@ -355,6 +389,15 @@ void motor_write(uint64_t packet, uint8_t crc_l, uint8_t crc_h)
 			while(!(UCA0IFG & UCTXIFG));
 			UCA0TXBUF = crc_h;
 		}
+		else if (GET_INST(packet) == RESET)
+		{
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = GET_1(packet);
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = crc_l;
+			while(!(UCA0IFG & UCTXIFG));
+			UCA0TXBUF = crc_h;
+		}
 		else
 		{
 			while(!(UCA0IFG & UCTXIFG));
@@ -385,16 +428,19 @@ void sync_write(uint8_t len)
 	uint8_t i, mode, split, length;
 	uint16_t checksum = 0;
 
-	if (sync_ids[len-1] < 0x07)
+	while(UCA0STATW & UCBUSY);			// ensure not busy
+	P3OUT |= BIT2;						// claim the bus
+
+	if (sync_ids[len-1] < 0x10)
 		mode = 0;
-	else if (sync_ids[0] >= 0x07)
+	else if (sync_ids[0] >= 0x10)
 		mode = 1;
 	else
 	{
 		mode = 2;
 		for (i = 0; i < len; i++)
 		{
-			if (sync_ids[i] >= 0x07)
+			if (sync_ids[i] >= 0x10)
 			{
 				split = i;
 				break;
@@ -469,7 +515,7 @@ void sync_write(uint8_t len)
 			SET_PARAM(packet, length);
 			SET_REG(packet, GOAL_POS);
 			SET_INST(packet, SYNC_WRITE);
-			SET_1(packet, len);
+			SET_1(packet, 4);
 			checksum = sync_checksum(packet);
 
 			/* send start condition */
@@ -655,6 +701,9 @@ void sync_write(uint8_t len)
 			P3OUT &= ~BIT2;								// give the bus to the motor
 			break;
 	}
+
+	while(UCA0STATW & UCBUSY);			// ensure not busy
+	P3OUT &= ~BIT2;						// claim the bus
 }
 
 uint16_t motor_read(uint64_t packet, uint8_t crc_l, uint8_t crc_h)
@@ -664,7 +713,7 @@ uint16_t motor_read(uint64_t packet, uint8_t crc_l, uint8_t crc_h)
 	motor_write(packet, crc_l, crc_h);		// ask to read
 	//temp = UCA0RXBUF;
 
-	if (GET_ID(packet) < 7)
+	if (GET_ID(packet) < 0x10)
 	{
 		if (GET_1(packet) == 1)				// asked to read one byte
 		{
@@ -780,7 +829,7 @@ void sync_read(uint8_t len)
 
 	for (i = 0; i < len; i++)
 	{
-		if (sync_ids[i] < 0x07)
+		if (sync_ids[i] < 0x10)
 			trap_error(0x40);
 			return;
 	}
@@ -959,7 +1008,7 @@ void set_return(uint8_t id, uint8_t level)
 		crc_h = XL_GET_2(checksum);
 		motor_write(packet, crc_l, crc_h);
 	}
-	else if (id < 0x07)
+	else if (id < 0x10)
 	{
 		SET_ID(packet, id);
 		SET_REG(packet, RETURN);
@@ -1085,7 +1134,7 @@ void set_torque(uint8_t id, uint16_t torque)
 		crc_h = XL_GET_2(checksum);
 		motor_write(packet, crc_l, crc_h);
 	}
-	else if (id < 0x07)
+	else if (id < 0x10)
 	{
 		SET_ID(packet, id);
 		SET_REG(packet, TORQUE);
@@ -1140,7 +1189,7 @@ void joint_mode(uint8_t id)
 		crc_h = XL_GET_2(checksum);
 		motor_write(packet, crc_l, crc_h);
 	}
-	else if (id < 0x07)
+	else if (id < 0x10)
 	{
 		SET_ID(packet, id);
 		SET_REG(packet, CW);
@@ -1175,7 +1224,7 @@ uint8_t ping(uint8_t id)
 	uint8_t crc_l, crc_h;
 	if (id == 0xFE)
 		trap_error(0x40);
-	else if (id < 0x07)
+	else if (id < 0x10)
 	{
 		SET_ID(packet, id);
 		SET_INST(packet, PING);
@@ -1243,6 +1292,56 @@ void led_off(uint8_t id)
 	}
 }
 
+void alarm_shutdown(uint8_t id)
+{
+	uint64_t packet = 0;
+	uint16_t checksum;
+	uint8_t crc_l, crc_h;
+	SET_ID(packet, id);
+	SET_REG(packet, 18);
+	SET_PARAM(packet, 2);
+	SET_INST(packet, WRITE);
+	SET_1(packet, 0);
+	checksum = checksum_gen(packet);
+	crc_l = XL_GET_1(checksum);
+	crc_h = XL_GET_2(checksum);
+
+	motor_write(packet, crc_l, crc_h);
+}
+
+void set_limit_voltage(uint8_t id, uint8_t voltage)
+{
+	uint64_t packet = 0;
+	uint16_t checksum;
+	uint8_t crc_l, crc_h;
+	SET_ID(packet, id);
+	SET_REG(packet, 14);
+	SET_PARAM(packet, 2);
+	SET_INST(packet, WRITE);
+	SET_1(packet, voltage);
+	checksum = checksum_gen(packet);
+	crc_l = XL_GET_1(checksum);
+	crc_h = XL_GET_2(checksum);
+
+	motor_write(packet, crc_l, crc_h);
+}
+
+void factory_reset(uint8_t id, uint8_t level)
+{
+	uint64_t packet = 0;
+	uint16_t checksum;
+	uint8_t crc_l, crc_h;
+	SET_ID(packet, id);
+	SET_INST(packet, RESET);
+	SET_1(packet, level);
+	checksum = checksum_gen(packet);
+	crc_l = XL_GET_1(checksum);
+	crc_h = XL_GET_2(checksum);
+
+	motor_write(packet, crc_l, crc_h);
+
+}
+
 /* performance APIs */
 void goal_position(uint8_t id, uint16_t position, uint16_t speed)
 {
@@ -1278,7 +1377,7 @@ uint16_t curr_position(uint8_t id)
 	uint8_t crc_l, crc_h;
 	if (id == 0xFE)
 		trap_error(0x40); 			// NOT SUPPOSED TO HAPPEN!
-	else if (id < 0x07)
+	else if (id < 0x10)
 	{
 		SET_ID(packet, id);
 		SET_REG(packet, CURR_POS);
@@ -1354,7 +1453,7 @@ void action(uint8_t id)
 		crc_h = XL_GET_2(checksum);
 		motor_write(packet, crc_l, crc_h);
 	}
-	else if (id < 0x07)
+	else if (id < 0x10)
 	{
 		SET_ID(packet, id);
 		SET_INST(packet, ACTION);

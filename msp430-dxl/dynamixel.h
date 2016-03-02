@@ -17,6 +17,9 @@ extern uint16_t sync_speeds[19];		// holds speeds to move to above positions to
 /* for sync_read, for xl-320s only! */
 extern uint16_t sync_readings[19];		// holds current positions of motors from sync_read()
 
+/* semaphore for communication synchronization */
+extern uint8_t sempahore;
+
 /* register addresses (that i think are relevant) */
 #define ID				3
 #define BAUD			4
@@ -41,8 +44,21 @@ extern uint16_t sync_readings[19];		// holds current positions of motors from sy
 #define WRITE			0x03
 #define REG_WRITE		0x04
 #define ACTION			0x05
+#define RESET			0x06
+#define INST			0x55
 #define SYNC_READ		0x82
 #define SYNC_WRITE 		0x83
+
+/* motor ids */
+#define THUMB_BASE 		0x10
+#define THUMB_KNUCKLE 	0x11
+#define THUMB_POINT		0x12
+#define PINKY_BASE		0x13
+#define PINKY_KNUCKLE	0x14
+#define PINKY_POINT		0x15
+#define INDEX_BASE		0x16
+#define INDEX_KNUCKLE	0x17
+#define INDEX_POINT		0x18
 
 /* macro functions/variables that may be helpful */
 /* the send packet layout for the write primitive is as follows:
@@ -81,19 +97,32 @@ extern uint16_t sync_readings[19];		// holds current positions of motors from sy
 #define XL_GET_2(x) 		 ((UINT16_C(x) & 0xFF00) >> 8)    // get second parameter
 #define XL_GET_1(x)          (UINT16_C(x) & 0xFF)            // get first parameter
 
-/* new setters! */
-#define SET_ID(x,y)		 (x &= (UINT64_C(~(0xFF << 56)) | UINT64_C(y) << 56))
-#define SET_COMM(x,y)    (x &= (UINT64_C(~(0x8 << 55)) | UINT64_C(y) << 55))
-#define SET_REG(x,y)	 (x &= (UINT64_C(~(0xFF << 48)) | UINT64_C(y) << 48))
-#define SET_ERROR(x,y)   (x &= (UINT64_C(~(0xFF << 48)) | UINT64_C(y) << 48))
-#define SET_PARAM(x,y)   (x &= (UINT64_C(~(0xFF << 40)) | UINT64_C(y) << 40))
-#define SET_INST(x,y)    (x &= (UINT64_C(~(0xFF << 32)) | UINT64_C(y) << 32))
-#define SET_4(x,y) 		 (x &= (UINT64_C(~(0xFF << 24)) | UINT64_C(y) << 24))
-#define SET_3(x,y) 		 (x &= (UINT64_C(~(0xFF << 16)) | UINT64_C(y) << 16))
-#define SET_2(x,y) 		 (x &= (UINT64_C(~(0xFF << 8)) | UINT64_C(y) << 8))
-#define SET_1(x,y)       (x &= (UINT64_C(~0xFF)) | UINT64_C(y))
-#define XL_SET_1(x,y)	 (x &= (UINT16_C(~0xFF)) | UINT16_C(y))
-#define XL_SET_2(x,y)	 (x &= (UINT16_C(~(0xFF << 8)) | UINT16_C(y) << 8))
+/* setters */
+#define SET_ID(x,y)		 (x |= (UINT64_C(y) << 56))
+#define SET_COMM(x,y)    (x |= (UINT64_C(y) << 55))
+#define SET_REG(x,y)	 (x |= (UINT64_C(y) << 48))
+#define SET_ERROR(x,y)   (x |= (UINT64_C(y) << 48))
+#define SET_PARAM(x,y)   (x |= (UINT64_C(y) << 40))
+#define SET_INST(x,y)    (x |= (UINT64_C(y) << 32))
+#define SET_4(x,y) 		 (x |= (UINT64_C(y) << 24))
+#define SET_3(x,y) 		 (x |= (UINT64_C(y) << 16))
+#define SET_2(x,y) 		 (x |= (UINT64_C(y) << 8))
+#define SET_1(x,y)       (x |= UINT64_C(y))
+#define XL_SET_1(x,y)	 (x |= (UINT16_C(y)))
+#define XL_SET_2(x,y)	 (x |= (UINT16_C(y) << 8))
+
+/* clearers */
+#define CLEAR_ID(x)		(UINT64_C(x) &= ~0xFF00000000000000)
+#define CLEAR_COMM(x)   (UINT64_C(x) &= ~0x0080000000000000)
+#define CLEAR_REG(x)	(UINT64_C(x) &= ~0x00FF000000000000)
+#define CLEAR_PARAM(x)	(UINT64_C(x) &= ~0x0000FF0000000000)
+#define CLEAR_INST(x)	(UINT64_C(x) &= ~0x000000FF00000000)
+#define CLEAR_4(x)		(UINT64_C(x) &= ~0x00000000FF000000)
+#define CLEAR_3(x)		(UINT64_C(x) &= ~0x0000000000FF0000)
+#define CLEAR_2(x)		(UINT64_C(x) &= ~0x000000000000FF00)
+#define CLEAR_1(x)		(UINT64_C(x) &= ~0x00000000000000FF)
+#define CLEAR_XL_1(x)	(UINT16_C(x) &= 0xFF00)
+#define CLEAR_XL_2(x)	(UINT16_C(x) &= 0x00FF)
 
 /* checksum generator */
 uint16_t checksum_gen(uint64_t packet);						// for comm. protocol one
@@ -118,6 +147,9 @@ void joint_mode(uint8_t id);
 uint8_t ping(uint8_t id);
 void led_on(uint8_t id);
 void led_off(uint8_t id);
+void alarm_shutdown(uint8_t id);
+void set_limit_voltage(uint8_t id, uint8_t voltage);
+void factory_reset(uint8_t id, uint8_t level);
 
 /* performance APIs */
 void goal_position(uint8_t id, uint16_t position, uint16_t speed);
