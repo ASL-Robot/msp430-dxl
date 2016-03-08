@@ -34,11 +34,12 @@ void msp_init(void)
     UCA2CTLW0 &= ~UCSWRST;
 
     /* spi initialization */
-    P1SEL0 |= (BIT4 | BIT5 | BIT6 | BIT7);			// P1.4 = UCB0STE, P1.5 = UCB0CLK
-    P1SEL1 &= ~(BIT4 | BIT5 | BIT6 | BIT7); 		// P1.6 = UCB0MOSI, P1.7 = UCB0MISO
-    UCB0CTLW0 = UCSWRST;
-    UCB0CTLW0 |= UCMSB | UCMODE_2 | UCSYNC;
-    UCB0CTLW0 &= ~UCSWRST;
+    P9SEL0 |= (BIT4 | BIT5 | BIT6 | BIT7);			// P9.4 = UCA3STE, P9.5 = UCA3CLK
+    P9SEL1 &= ~(BIT4 | BIT5 | BIT6 | BIT7); 		// P9.6 = UCA3MISO, P9.7 = UCA3MOSI
+    UCA3CTLW0 = UCSWRST;
+    UCA3CTLW0 |= UCMSB | UCMODE_2 | UCSYNC;
+    UCA3IE |= UCRXIE;
+    UCA3CTLW0 &= ~UCSWRST;
 
     /* port initialization */
     P4DIR &= ~BIT1;									// initialization of the port that
@@ -57,7 +58,7 @@ void msp_init(void)
     /* interrupt settings */
     NVIC_ISER0 |= (1 << ((INT_EUSCIA2 - 16) & 31)); // enable euscia2 (uart)
     NVIC_ISER0 |= (1 << ((INT_TA0_0 - 16) & 31)); 	// enable timer (timer)
-    NVIC_ISER0 |= (1 << ((INT_EUSCIB0 - 16) & 31));	// enable euscib0 (spi)
+    NVIC_ISER0 |= (1 << ((INT_EUSCIA3 - 16) & 31));	// enable euscia3 (spi)
     NVIC_ISER1 |= (1 << ((INT_PORT4 - 16) & 31));	// enable port4 (ready signal)
     PCMCTL1 &= ~LOCKLPM5;							// unlock ports
 

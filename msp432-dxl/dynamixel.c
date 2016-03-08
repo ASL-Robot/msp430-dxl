@@ -621,30 +621,3 @@ void uart()
 			break;
 	}
 }
-
-void spi()
-{
-//	uint8_t temp; 	// this is temporary
-//	s = UCB0IV;
-//	switch(s)
-//	{
-//		case UCRXIFG: temp = UCB0RXBUF; break;
-//		case UCTXIFG: UCB0TXBUF = 'U';  break;
-//	}
-	__no_operation();
-}
-
-void timer()
-{
-	__no_operation();
-}
-
-void port()
-{
-	p = P4IV;
-	switch(p)
-	{
-		case 0x04: break;
-		default: break;
-	}
-}

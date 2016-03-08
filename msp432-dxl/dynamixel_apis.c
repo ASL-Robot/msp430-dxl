@@ -9,6 +9,7 @@
 
 #include "dynamixel_apis.h"
 #include "dynamixel.h"
+#include "gestures.h"
 
 void set_id(uint8_t old_id, uint8_t new_id)
 {
@@ -455,5 +456,17 @@ void action(uint8_t id)
 		SET_COMM(packet, 0x01);
 		checksum_gen();
 		motor_write();
+	}
+}
+
+void gesture(uint8_t g_id)
+{
+	switch(g_id)
+	{
+		case 1: curl(); break;
+		case 2: open(); break;
+		case 3: thumbs_up(); break;
+		case 4: point(); break;
+		case 5: okay(); break;
 	}
 }
