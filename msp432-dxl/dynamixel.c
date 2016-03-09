@@ -20,12 +20,13 @@ uint8_t sync_ids[10] = { 0 };				// load sync write ids here
 uint16_t sync_positions[10] = { 0 };		// load sync write positions here
 uint16_t sync_speeds[10] = { 0 };			// load sync write speeds here
 uint16_t sync_readings[10] = { 0 };			// load sync read positions here
+uint8_t gesture = 0;						// load hand gesture here
 
 /* private variables */
 uint64_t packet = 0;						// global packet for sending
 uint16_t return_packet = 0; 				// global packet for receiving
-uint8_t checksum_1;							// global checksum for communication protocol one
-uint16_t checksum_2; 						// global checksum for communication protocol two
+uint8_t checksum_1 = 0;						// global checksum for communication protocol one
+uint16_t checksum_2 = 0; 					// global checksum for communication protocol two
 uint8_t split = 0; 							// global split to define split in sync write
 
 /* private interrupt vector holders */
@@ -69,136 +70,14 @@ static const uint16_t lookup[256] =
 };
 
 //////////////////// checksum generator ////////////////////
-void checksum_gen()
+void checksum_gen(uint8_t byte)
 {
-	if (GET_COMM(packet))		// generator for protocol two
-	{
-		uint16_t crc_accum = 0, i, j;
-		switch(GET_INST(packet))
-		{
-			case PING:
-			case ACTION:
-			{
-				uint8_t tx[] = { 0xFF, 0xFF, 0xFD, 0x00, GET_ID(packet),
-						0x03, 0x00, GET_INST(packet) };
-				for (j  = 0; j < 8; j++)
-				{
-					i = ((uint16_t)(crc_accum >> 8) ^ tx[j]) & 0xFF;
-					crc_accum = (crc_accum << 8) ^ lookup[i];
-				}
-				break;
-			}
-			case RESET:
-			{
-				uint8_t tx[] = { 0xFF, 0xFF, 0xFD, 0x00, GET_ID(packet),
-						0x04, 0x00, GET_INST(packet), GET_1(packet) };
-				for (j  = 0; j < 9; j++)
-				{
-					i = ((uint16_t)(crc_accum >> 8) ^ tx[j]) & 0xFF;
-					crc_accum = (crc_accum << 8) ^ lookup[i];
-				}
-				break;
-			}
-			case SYNC_WRITE:
-			{
-				uint8_t tx[] = { 0xFF, 0xFF, 0xFD, 0x00, 0xFE,
-							 GET_PARAM(packet), 0x00, SYNC_WRITE,
-						 GOAL_POS, 0x00, 0x04, 0x00 };
-				uint8_t k = 0, l = split;
-				for (j = 0; j < GET_PARAM(packet)+5; j++)
-				{
-					if (j < 12)
-						i = ((crc_accum >> 8) ^ tx[j]) & 0xFF;
-					else
-					{
-						switch(k)
-						{
-							case 0:
-								i = ((crc_accum >> 8) ^ sync_ids[l]) & 0xFF;
-								k++;
-								break;
-							case 1:
-								i = ((crc_accum >> 8) ^ GET_1(sync_positions[l])) & 0xFF;
-								k++;
-								break;
-							case 2:
-								i = ((crc_accum >> 8) ^ GET_2(sync_positions[l])) & 0xFF;
-								k++;
-								break;
-							case 3:
-								i = ((crc_accum >> 8) ^ GET_1(sync_speeds[l])) & 0xFF;
-								k++;
-								break;
-							case 4:
-								i = ((crc_accum >> 8) ^ GET_2(sync_speeds[l])) & 0xFF;
-								k = 0;
-								l++;
-								break;
-						}
-					}
-					crc_accum = (crc_accum << 8) ^ lookup[i];
-				}
-				l = 0;
-				break;
-			}
-			case SYNC_READ:
-			{
-				uint8_t tx[] = { 0xFF, 0xFF, 0xFD, 0x00, 0xFE,
-							 GET_PARAM(packet), 0x00, SYNC_READ,
-						 XL_CURR_POS, 0x00, 0x02, 0x00 };
-				for (j = 0; j < GET_1(packet)+12; j++)
-				{
-					if (j < 12)
-						i = ((crc_accum >> 8) ^ tx[j]) & 0xFF;
-					else
-						i = ((crc_accum >> 8) ^ sync_ids[j-12]) & 0xFF;
-					crc_accum = (crc_accum << 8) ^ lookup[i];
-				}
-				break;
-			}
-			default:
-			{
-				uint8_t tx[] = { 0xFF, 0xFF, 0xFD, 0x00, GET_ID(packet), GET_PARAM(packet) + 4, 0x00, GET_INST(packet),
-						GET_REG(packet), 0x00, GET_1(packet), GET_2(packet), GET_3(packet),
-						GET_4(packet) };
+	uint8_t i;
+	uint16_t crc_accum = 0;
 
-				for(j = 0; j < GET_PARAM(packet)+9; j++)
-				{
-						i = ((uint16_t)(crc_accum >> 8) ^ tx[j]) & 0xFF;
-						crc_accum = (crc_accum << 8) ^ lookup[i];
-				}
-				break;
-			}
-		}
-		checksum_2 = crc_accum;
-	}
-	else						// generator for protocol one
-	{
-		uint8_t i;
-		switch(GET_INST(packet))
-		{
-			case PING:
-			case ACTION:
-			case RESET:
-				checksum_1 = (~(GET_ID(packet) + 2 + GET_INST(packet)) & 0xFF);
-				break;
-			case SYNC_WRITE:
-				checksum_1 = 0xFE + GOAL_POS + SYNC_WRITE + GET_PARAM(packet) + 4;
-				for (i = 0; i < GET_1(packet); i++)
-				{
-					checksum_1 += sync_ids[i] + GET_1(sync_positions[i]) + GET_2(sync_positions[i])
-							   + GET_1(sync_speeds[i]) + GET_2(sync_speeds[i]);
-				}
-				checksum_1 = ~checksum_1 & 0xFF;
-				break;
-			default:
-				checksum_1 += GET_ID(packet) + GET_PARAM(packet) + 2 + GET_INST(packet) + GET_REG(packet);
-				for (i = 0; i < 8*(GET_PARAM(packet)-1); i=i+8)
-					checksum_1 += ((packet >> i) & 0xFF);
-				checksum_1 = ~checksum_1 & 0xFF;
-				break;
-		}
-	}
+	i = ((uint16_t)(crc_accum >> 8) ^ byte) & 0xFF;
+	crc_accum = (crc_accum << 8) ^ lookup[i];
+	checksum_2 = crc_accum;
 }
 
 //////////////////// read/write primitives ////////////////////
@@ -222,7 +101,7 @@ void sync_write(uint8_t len)
 		SET_PARAM(packet, ((5*len) + 4));
 		SET_1(packet, len);
 		/* generate a protocol one checksum */
-		checksum_gen();
+		//checksum_gen();
 
 		/* now send */
 		while(UCA2STATW & UCBUSY);					// ensure not busy
@@ -236,7 +115,7 @@ void sync_write(uint8_t len)
 		SET_1(packet, len);
 		SET_COMM(packet, 0x01);
 		/* generate a protocol two checksum */
-		checksum_gen();
+		//checksum_gen();
 
 		/* now send */
 		while(UCA2STATW & UCBUSY);					// ensure not busy
@@ -260,7 +139,7 @@ void sync_write(uint8_t len)
 			}
 		}
 		/* generate a protocol one checksum */
-		checksum_gen();
+		//checksum_gen();
 		temp_packet = packet;
 
 		/* generate a protocol two checksum */
@@ -269,7 +148,7 @@ void sync_write(uint8_t len)
 		SET_1(packet, (len-split));
 		SET_PARAM(packet, ((5*(len-split)) + 7));
 		SET_COMM(packet, 0x01);
-		checksum_gen();
+		//checksum_gen();
 		buffer = packet;
 		packet = temp_packet;
 
@@ -314,7 +193,7 @@ void sync_read(uint8_t len)
 	SET_1(packet, len);
 
 	/* then a checksum must be generated */
-	checksum_gen();
+	////checksum_gen();
 
 	/* first, send a request to read */
 	motor_write();
@@ -524,32 +403,55 @@ void uart()
 				{
 					uint8_t tx[] = { 0xFF, 0xFF, 0xFD, 0x00, 0xFE, GET_PARAM(packet), 0x00, SYNC_READ, XL_CURR_POS, 0x00, 0x02, 0x00 };
 					if (i < 12)
-						UCA2TXBUF = tx[i];
-					else if (i <= (GET_1(packet)) + 11)
-						UCA2TXBUF = sync_ids[i-12];
-					i++;
-					if (i == ((GET_1(packet)) + 12))
-						UCA2TXBUF = GET_1(checksum_2);
-					if (i == ((GET_1(packet)) + 13))
-						UCA2TXBUF = GET_2(checksum_2);
-					if (i == (GET_1(packet)+14))
 					{
+						UCA2TXBUF = tx[i];
+						checksum_gen(tx[i]);
+						i++;
+					}
+					else if (i < (GET_1(packet)) + 12)
+					{
+						UCA2TXBUF = sync_ids[i-12];
+						checksum_gen(tx[i]);
+						i++;
+					}
+					else if (i == (GET_1(packet)) + 12)
+					{
+						UCA2TXBUF = GET_1(checksum_2);
+						i++;
+					}
+					else
+					{
+						UCA2TXBUF = GET_2(checksum_2);
 						i = 0;
 						UCA2IE &= ~UCTXIE;
 					}
 				}
 				else
 				{
-					uint8_t tx[] = { 0xFF, 0xFF, 0xFD, 0x00, GET_ID(packet), GET_PARAM(packet) + 4, 0x00, GET_INST(packet), GET_REG(packet), 0x00, GET_1(packet), GET_2(packet), GET_3(packet), GET_4(packet), GET_1(checksum_2), GET_2(checksum_2) };
-					UCA2TXBUF = tx[i];
-					i++;
-					if (((GET_PARAM(packet) == 0) && (i == 8))   ||
-						((GET_PARAM(packet) == 2) && (i == 11))  ||
-						((GET_PARAM(packet) == 3) && (i == 12))  ||
-						((GET_PARAM(packet) == 4) && (i == 13)))
-						i = 14;
-					if (i == 16)
+					uint8_t tx[] = { 0xFF, 0xFF, 0xFD, 0x00, GET_ID(packet), GET_PARAM(packet) + 4, 0x00, GET_INST(packet), GET_REG(packet), 0x00,
+								     GET_1(packet), GET_2(packet), GET_3(packet), GET_4(packet) };
+					if (((GET_PARAM(packet) == 0) && (i < 8))   ||
+						((GET_PARAM(packet) == 2) && (i < 11))  ||
+						((GET_PARAM(packet) == 3) && (i < 12))  ||
+						((GET_PARAM(packet) == 4) && (i < 13))	||
+						((GET_PARAM(packet) == 5) && (i < 14)))
 					{
+						UCA2TXBUF = tx[i];
+						checksum_gen(tx[i]);
+						i++;
+					}
+					else if (((GET_PARAM(packet) == 0) && (i == 8))   ||
+							((GET_PARAM(packet) == 2) && (i == 11))  ||
+							((GET_PARAM(packet) == 3) && (i == 12))  ||
+							((GET_PARAM(packet) == 4) && (i == 13))	 ||
+							((GET_PARAM(packet) == 5) && (i == 14)))
+					{
+						UCA2TXBUF = GET_1(checksum_2);
+						i++;
+					}
+					else
+					{
+						UCA2TXBUF = GET_2(checksum_2);
 						i = 0;
 						UCA2IE &= ~UCTXIE;
 					}
@@ -561,29 +463,38 @@ void uart()
 				{
 					uint8_t tx[] = { 0xFF, 0xFF, 0XFE, GET_PARAM(packet), SYNC_WRITE, GOAL_POS, 0x04 };
 					if (i < 7)
+					{
 						UCA2TXBUF = tx[i];
+						if (i > 1)
+							checksum_1 += tx[i];
+					}
 					else if (i <= (5*GET_1(packet) + 6))
 					{
 						switch(k)
 						{
 							case 0:
 								UCA2TXBUF = sync_ids[l];
+								checksum_1 += sync_ids[l];
 								k++;
 								break;
 							case 1:
 								UCA2TXBUF = GET_1(sync_positions[l]);
+								checksum_1 += GET_1(sync_positions[l]);
 								k++;
 								break;
 							case 2:
 								UCA2TXBUF = GET_2(sync_positions[l]);
+								checksum_1 += GET_2(sync_positions[l]);
 								k++;
 								break;
 							case 3:
 								UCA2TXBUF = GET_1(sync_speeds[l]);
+								checksum_1 += GET_1(sync_speeds[l]);
 								k++;
 								break;
 							case 4:
 								UCA2TXBUF = GET_2(sync_speeds[l]);
+								checksum_1 += GET_2(sync_speeds[l]);
 								k = 0;
 								l++;
 								break;
@@ -592,25 +503,29 @@ void uart()
 					i++;
 					if (i == ((5*GET_1(packet)) + 7))
 					{
-						UCA2TXBUF = checksum_1;
+						UCA2TXBUF = ~checksum_1;
 						i = 0;
 						UCA2IE &= ~UCTXIE;
 					}
 				}
 				else
 				{
-					uint8_t tx[] = { 0xFF, 0xFF, GET_ID(packet), GET_PARAM(packet) + 2, GET_INST(packet), GET_REG(packet), GET_1(packet), GET_2(packet), GET_3(packet), GET_4(packet), checksum_1 };
-
-					UCA2TXBUF = tx[i];
-					i++;
-
-					if (((GET_PARAM(packet) == 0) && (i == 5))   ||
-						((GET_PARAM(packet) == 2) && (i == 7))   ||
-						((GET_PARAM(packet) == 3) && (i == 8))   ||
-						((GET_PARAM(packet) == 4) && (i == 9)))
-						i = 10;
-					if (i == 11)
+					uint8_t tx[] = { 0xFF, 0xFF, GET_ID(packet), GET_PARAM(packet) + 2, GET_INST(packet), GET_REG(packet),
+							         GET_1(packet), GET_2(packet), GET_3(packet), GET_4(packet) };
+					if (((GET_PARAM(packet) == 0) && (i < 5))   ||
+						((GET_PARAM(packet) == 2) && (i < 7))   ||
+						((GET_PARAM(packet) == 3) && (i < 8))   ||
+						((GET_PARAM(packet) == 4) && (i < 9))   ||
+						((GET_PARAM(packet) == 5) && (i < 10)))
 					{
+						UCA2TXBUF = tx[i];
+						if (i > 1)
+							checksum_1 += tx[i];
+						i++;
+					}
+					else
+					{
+						UCA2TXBUF = ~checksum_1;
 						i = 0;
 						UCA2IE &= ~UCTXIE;
 					}

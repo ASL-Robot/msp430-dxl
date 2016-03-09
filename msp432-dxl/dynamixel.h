@@ -124,7 +124,7 @@ extern uint8_t split; 					// global split to define split in sync write
 #define CLEAR_1(x)		(x &= ~0x00000000000000FF)
 
 /* checksum generator */
-void checksum_gen();
+void checksum_gen(uint8_t byte);
 
 /* read/write primitives */
 void motor_write();
