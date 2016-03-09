@@ -30,7 +30,4 @@ uint16_t curr_position(uint8_t id);
 void register_goal_position(uint8_t id, uint16_t position, uint16_t speed);
 void action(uint8_t id);
 
-/* gesture call */
-void gesture(uint8_t g_id);
-
 #endif /* DYNAMIXEL_APIS_H_ */

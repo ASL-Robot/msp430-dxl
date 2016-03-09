@@ -16,10 +16,10 @@
 #include "dynamixel.h"
 
 /* external variables that can be accessed from main */
-uint8_t sync_ids[19] = { 0 };				// load sync write ids here
-uint16_t sync_positions[19] = { 0 };		// load sync write positions here
-uint16_t sync_speeds[19] = { 0 };			// load sync write speeds here
-uint16_t sync_readings[19] = { 0 };			// load sync read positions here
+uint8_t sync_ids[10] = { 0 };				// load sync write ids here
+uint16_t sync_positions[10] = { 0 };		// load sync write positions here
+uint16_t sync_speeds[10] = { 0 };			// load sync write speeds here
+uint16_t sync_readings[10] = { 0 };			// load sync read positions here
 
 /* private variables */
 uint64_t packet = 0;						// global packet for sending
@@ -206,7 +206,6 @@ void motor_write()
 {
 	while(UCA2STATW & UCBUSY);					// ensure not busy
 	P6OUT |= BIT0;								// claim the bus
-	//SCB_SCR_SLEEPONEXIT;				// don't wake up from isr
 	UCA2IE |= UCTXIE;
 	__wfi();
 	while(UCA2STATW & UCBUSY);					// ensure not busy
@@ -215,7 +214,6 @@ void motor_write()
 
 void sync_write(uint8_t len)
 {
-	//SCB_SCR_SLEEPONEXIT;				// don't wake up from isr
 	SET_INST(packet, SYNC_WRITE);
 
 	/* the mode should be fouWnd at this point to determine sending */
@@ -296,9 +294,9 @@ void sync_write(uint8_t len)
 uint16_t motor_read()
 {
 	 motor_write();							// ask to read
-	 //SCB_SCR_SLEEPONEXIT;		// don't wake up from isr
 	 UCA2IE |= UCRXIE;
 	 __wfi();
+	 while(UCA2STATW & UCBUSY);
 	 UCA2IE &= ~UCRXIE;
 	 return (return_packet & 0xFFFF);
 }
@@ -325,10 +323,10 @@ void sync_read(uint8_t len)
 	UCA2IE |= UCRXIE;
 	do
 	{
-		//SCB_SCR_SLEEPONEXIT;		// don't wake up from isr
 		__wfi();
 		i++;
 	}while(i < len);
+	while(UCA2STATW & UCBUSY);
 	UCA2IE &= ~UCRXIE;
 }
 

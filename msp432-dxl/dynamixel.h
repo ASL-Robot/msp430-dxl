@@ -11,12 +11,13 @@
 #include <msp.h>
 
 /* for sync_write */
-extern uint8_t sync_ids[19];			// holds the ids that need to be written to/read from
-extern uint16_t sync_positions[19];		// holds positions to move to
-extern uint16_t sync_speeds[19];		// holds speeds to move to above positions to
+extern uint8_t sync_ids[10];			// holds the ids that need to be written to/read from
+extern uint16_t sync_positions[10];		// holds positions to move to
+extern uint16_t sync_speeds[10];		// holds speeds to move to above positions to
+extern uint8_t gesture; 				// holds the gesture the motors must perform
 
 /* for sync_read, for xl-320s only! */
-extern uint16_t sync_readings[19];		// holds current positions of motors from sync_read()
+extern uint16_t sync_readings[10];		// holds current positions of motors from sync_read()
 
 extern uint64_t packet;					// global packet for sending
 extern uint16_t return_packet; 			// global packet for receiving

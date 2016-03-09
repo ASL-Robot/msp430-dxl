@@ -1,4 +1,5 @@
 #include <msp.h>
+#include <stdint.h>
 #include "init.h"
 #include "dynamixel.h"
 #include "dynamixel_apis.h"
@@ -12,9 +13,25 @@ typedef union
 	struct __attribute__((__packed__))
 	{
 		uint8_t jid;
-		float goal_pos;
-		uint32_t start;
-		uint32_t end;
+		union
+		{
+			struct __attribute__((__packed__))
+			{
+				float goal_pos;
+				uint32_t start_time;
+				uint32_t end_time;
+			};
+			struct __attribute__((__packed__))
+			{
+				uint8_t gesture;
+				uint8_t padding0[11];
+			};
+			struct __attribute__((__packed__))
+			{
+				uint8_t checkpoint;
+				uint8_t padding1[11];
+			};
+		};
 	};
 } movement;
 movement queue[40];
@@ -33,15 +50,13 @@ void main(void)
 //	sync_write(2);
 //	//dynamixel_init();
     while(1)
-    {
     	__sleep();
-    }
 }
 
 void spi()
 {
 	/* general variables */
-	static uint16_t r_i = 0, num_moves = 0, num_bytes;
+	static uint16_t r_i = 0, num_moves = 0;
 	static uint8_t id, packet_type = 0;
 
 	/* specific data holders */
@@ -59,53 +74,9 @@ void spi()
 			}
 			else
 			{
-				switch(packet_type)
-				{
-					case 1: 	// movement
-						if (r_i == 0)
-							id = UCB0RXBUF;
-						else if (r_i == 1)
-						{
-							if (id == 0xFE)
-							{
-								g_id = UCB0RXBUF;
-								gesture(g_id);
-								packet_type = id = r_i = g_id = 0;
-							}
-							else if (id == 0xFD)
-							{
-								checkpoint = UCB0RXBUF;
-								packet_type = id = r_i = 0;
-							}
-							else
-								num_moves = UCB0RXBUF;
-						}
-						else if (r_i == 2)
-						{
-							num_moves = (UINT16_C(UCB0RXBUF) << 8) | num_moves;
-							num_bytes = (13*num_moves);
-						}
-						else
-						{
-							if ((r_i - 3) < num_bytes)
-							{
-								if (r_i == ((13*(q_num+1))+3))
-									q_num++;
-								queue[q_num].raw[r_i - (13*q_num)+3] = UCB0RXBUF;
-							}
-							else
-								packet_type = q_num = num_moves = num_bytes = r_i = id = 0;
-						}
-						break;
-					case 2:
-						break;
-					case 3:
-						break;
-				}
-				r_i++;
+
 			}
 			break;
-		case UCTXIFG: UCB0TXBUF = 'U'; break;
 	}
 }
 

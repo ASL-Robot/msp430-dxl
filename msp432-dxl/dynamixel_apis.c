@@ -459,14 +459,3 @@ void action(uint8_t id)
 	}
 }
 
-void gesture(uint8_t g_id)
-{
-	switch(g_id)
-	{
-		case 1: curl(); break;
-		case 2: open(); break;
-		case 3: thumbs_up(); break;
-		case 4: point(); break;
-		case 5: okay(); break;
-	}
-}
