@@ -6,7 +6,7 @@
 #include "calculations.h"
 #include "gestures.h"
 
-/* for processing information from raspberry pi */
+/* data structure for information from raspberry pi */
 typedef union
 {
 	uint8_t raw[13];
@@ -35,22 +35,39 @@ typedef union
 	};
 } movement;
 movement queue[40];
+
+/* communication flags and variables*/
+uint8_t waiting = 1;
+uint8_t len = 0;
+
+/* interrupt vector holders */
 uint8_t s, t, p;
 
 void main(void)
 {
+	uint8_t i;
 	msp_init();
-//	uint8_t i;
-//	for (i = 0; i < 2; i++)
-//	{
-//		sync_ids[i] = i;
-//		sync_positions[i] = i;
-//		sync_speeds[i] = i;
-//	}
-//	sync_write(2);
-//	//dynamixel_init();
+	//dynamixel_init();
     while(1)
-    	__sleep();
+    {
+    	while(waiting)
+    		__wfi();
+    	for (i = 0; i < len; i++)
+    	{
+    		if (queue[i].jid == 0xFE)
+    		{
+    			__no_operation();
+    		}
+    		else if (queue[i].jid == 0xFD)
+    		{
+    			__no_operation();
+    		}
+    		else
+    		{
+    			__no_operation();
+    		}
+    	}
+    }
 }
 
 void spi()
@@ -63,18 +80,41 @@ void spi()
 	uint8_t g_id = 0;
 	static uint8_t checkpoint = 0, q_num = 0;
 
-	s = UCB0IV;
+	s = UCA3IV;
 	switch(s)
 	{
 		case UCRXIFG:
-			if (packet_type == 0)
+			switch(packet_type)
 			{
-				packet_type = UCB0RXBUF;
-				r_i = 0;
-			}
-			else
-			{
-
+				case 0: packet_type = UCA3RXBUF; r_i = 0; break;
+				case 1:
+					if (r_i == 0)
+					{
+						num_moves = UCA3RXBUF;
+						r_i++;
+					}
+					else if (r_i == 1)
+					{
+						num_moves = (UINT16_C(UCA3RXBUF) << 8) | num_moves;
+						r_i++;
+					}
+					else if ((r_i-2) < 13*num_moves)
+					{
+						queue[(r_i-2)/13].raw[(r_i-2)%13] = UCA3RXBUF;
+						if ((r_i-2) == (13*num_moves)-1)
+						{
+							packet_type = waiting = 0;
+							len = (r_i-2)/13;
+							UCA3IE &= ~UCRXIE;
+						}
+						else
+							r_i++;
+					}
+					break;
+				case 2:
+					break;
+				case 3:
+					break;
 			}
 			break;
 	}

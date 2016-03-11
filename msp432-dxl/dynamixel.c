@@ -14,13 +14,14 @@
 #include <stdint.h>
 #include <msp.h>
 #include "dynamixel.h"
+#include "gestures.h"
 
 /* external variables that can be accessed from main */
 uint8_t sync_ids[10] = { 0 };				// load sync write ids here
 uint16_t sync_positions[10] = { 0 };		// load sync write positions here
 uint16_t sync_speeds[10] = { 0 };			// load sync write speeds here
-uint16_t sync_readings[10] = { 0 };			// load sync read positions here
-uint8_t gesture = 0;						// load hand gesture here
+uint16_t readings[10] = { 0 };				// load current positions here
+uint8_t g_id = 0;							// load hand gesture here
 
 /* private variables */
 uint64_t packet = 0;						// global packet for sending
@@ -218,96 +219,7 @@ void uart()
 	switch(u)
 	{
 		case 0x02:
-			if (GET_COMM(packet))		// comm. protocol two
-			{
-				if (GET_INST(packet) == SYNC_READ)
-				{
-					temp = UCA2RXBUF;
-					i++;
-					if (GET_1(packet) == 2)
-					{
-						switch(i)
-						{
-							case  9: error = temp; 		  break;
-							case 10: SET_1(sync_readings[k], temp); break;
-							case 11: SET_2(sync_readings[k], temp); break;
-							default:					  break;
-						}
-						if (error)
-							while(1);
-						if (i >= 13)
-						{
-							UCA2IE &= ~UCTXIE;
-							k++;
-							if (k == (GET_1(packet)))
-								k = 0;
-						}
-					}
-					else
-					{
-						switch(i)
-						{
-							case  9: error = temp; 		  break;
-							case 10: SET_1(sync_readings[k], temp); break;
-							default:					  break;
-						}
-						if (error)
-							while(1);
-						if (i >= 12)
-						{
-							UCA2IE &= ~UCTXIE;
-							k++;
-							if (k == (GET_1(packet)))
-								k = 0;
-						}
-					}
-				}
-				else
-				{
-					temp = UCA2RXBUF;
-					i++;
-					if (GET_1(packet) == 2)
-					{
-						switch(i)
-						{
-							case  9: error = temp; 		  break;
-							case 10: SET_1(return_packet, temp); break;
-							case 11: SET_2(return_packet, temp); break;
-							default:					  break;
-						}
-						if (error)
-							while(1);
-						if (i >= 13)
-						{
-							UCA2IE &= ~UCTXIE;
-							k++;
-							if (k == (GET_1(packet)))
-								k = 0;
-						}
-					}
-					else
-					{
-						switch(i)
-						{
-							case  9: error = temp; 		  break;
-							case 10: SET_1(return_packet, temp); break;
-							default: 					  break;
-						}
-						if (error)
-							while(1);
-						if (i >= 13)
-						{
-							UCA2IE &= ~UCTXIE;
-							k++;
-							if (k == (GET_1(packet)))
-								k = 0;
-						}
-					}
-					if (error)
-						while(1);
-				}
-			}
-			else						// comm. protocol one
+			if (GET_COMM(packet) == 0)
 			{
 				temp = UCA2RXBUF;
 				i++;
@@ -355,48 +267,118 @@ void uart()
 		case 0x04:
 			if (GET_COMM(packet))		// comm. protocol two
 			{
-				/* these don't use packets. */
+
 				if (GET_INST(packet) == SYNC_WRITE)
 				{
 					uint8_t tx[] = { 0xFF, 0xFF, 0xFD, 0x00, 0xFE, GET_PARAM(packet), 0x00, SYNC_WRITE, GOAL_POS, 0x00, 0x04, 0x00 };
 					if (i < 12)
-						UCA2TXBUF = tx[i];
-					else if (i <= ((5*GET_1(packet)) + 11))
 					{
-						switch(k)
+						UCA2TXBUF = tx[i];
+						checksum_gen(tx[i]);
+						i++;
+					}
+					else
+					{
+						switch(g_id)
 						{
-							case 0:
-								UCA2TXBUF = sync_ids[split];
-								k++;
-								break;
 							case 1:
-								UCA2TXBUF = GET_1(sync_positions[split]);
-								k++;
+								if ((i-12) < curl_data[0])
+								{
+									UCA2TXBUF = curl_data[i-11];
+									checksum_gen(tx[i]);
+									i++;
+								}
+								else if ((i-12) == curl_data[0])
+								{
+									UCA2TXBUF = GET_1(checksum_2);
+									i++;
+								}
+								else
+								{
+									UCA2TXBUF = GET_2(checksum_2);
+									i = split = 0;
+									UCA2IE &= ~UCTXIE;
+								}
 								break;
 							case 2:
-								UCA2TXBUF = GET_2(sync_positions[split]);
-								k++;
+								if ((i-12) < open_data[0])
+								{
+									UCA2TXBUF = open_data[i-11];
+									checksum_gen(tx[i]);
+									i++;
+								}
+								else if ((i-12) == open_data[0])
+								{
+									UCA2TXBUF = GET_1(checksum_2);
+									i++;
+								}
+								else
+								{
+									UCA2TXBUF = GET_2(checksum_2);
+									i = split = 0;
+									UCA2IE &= ~UCTXIE;
+								}
 								break;
 							case 3:
-								UCA2TXBUF = GET_1(sync_speeds[split]);
-								k++;
+								if ((i-12) < thumbs_up_data[0])
+								{
+									UCA2TXBUF = thumbs_up_data[i-11];
+									checksum_gen(tx[i]);
+									i++;
+								}
+								else if ((i-12) == thumbs_up_data[0])
+								{
+									UCA2TXBUF = GET_1(checksum_2);
+									i++;
+								}
+								else
+								{
+									UCA2TXBUF = GET_2(checksum_2);
+									i = split = 0;
+									UCA2IE &= ~UCTXIE;
+								}
 								break;
 							case 4:
-								UCA2TXBUF = GET_2(sync_speeds[split]);
-								k = 0;
-								split++;
+								if ((i-12) < point_data[0])
+								{
+									UCA2TXBUF = point_data[i-11];
+									checksum_gen(tx[i]);
+									i++;
+								}
+								else if ((i-12) == point_data[0])
+								{
+									UCA2TXBUF = GET_1(checksum_2);
+									i++;
+								}
+								else
+								{
+									UCA2TXBUF = GET_2(checksum_2);
+									i = split = 0;
+									UCA2IE &= ~UCTXIE;
+								}
 								break;
+							case 5:
+								if ((i-12) < okay_data[0])
+								{
+									UCA2TXBUF = okay_data[i-11];
+									checksum_gen(tx[i]);
+									i++;
+								}
+								else if ((i-12) == okay_data[0])
+								{
+									UCA2TXBUF = GET_1(checksum_2);
+									i++;
+								}
+								else
+								{
+									UCA2TXBUF = GET_2(checksum_2);
+									i = split = 0;
+									UCA2IE &= ~UCTXIE;
+								}
+								break;
+							default:
+								while(1);
 						}
-					}
-					i++;
-					if (i == ((5*GET_1(packet)) + 12))
-						UCA2TXBUF = GET_1(checksum_2);
-					if (i == ((5*GET_1(packet)) + 13))
-						UCA2TXBUF = GET_2(checksum_2);
-					if (i == ((5*GET_1(packet)) + 14))
-					{
-						i = split = 0;
-						UCA2IE &= ~UCTXIE;
 					}
 				}
 				else if (GET_INST(packet) == SYNC_READ)
