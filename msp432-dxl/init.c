@@ -25,13 +25,15 @@ void msp_init(void)
     while((!(CSSTAT & SMCLK_READY)) && (!(CSSTAT & MCLK_READY)));	// wait for clocks to ready
 
     /* uart initialization */
-    P3SEL0 |= (BIT2 | BIT3); 						// P3.2 = UCA2RX;
-    P3SEL1 &= ~(BIT2 | BIT3); 						// P3.3 = UCA2TX;
-    UCA2CTLW0 = UCSWRST;
-    UCA2CTLW0 |= UCSSEL_2;
-    UCA2BRW |= 1;
-    UCA2MCTLW |= 0x81;
-    UCA2CTLW0 &= ~UCSWRST;
+    P2REN |= BIT3;
+    P2OUT |= BIT3;
+    P2SEL0 |= (BIT2 | BIT3); 						// P3.2 = UCA2RX;
+    P2SEL1 &= ~(BIT2 | BIT3); 						// P3.3 = UCA2TX;
+    UCA1CTLW0 = UCSWRST;
+    UCA1CTLW0 |= UCSSEL_2;
+    UCA1BRW |= 1;
+    UCA1MCTLW |= 0x81;
+    UCA1CTLW0 &= ~UCSWRST;
 
     /* spi initialization */
     P1SEL0 |= (BIT4 | BIT5 | BIT6 | BIT7);			// P1.4 = UCB0STE, P1.5 = UCB0CLK
@@ -55,7 +57,7 @@ void msp_init(void)
     P6DIR |= BIT0; 									// direction pin
 
     /* interrupt settings */
-    NVIC_ISER0 |= (1 << ((INT_EUSCIA2 - 16) & 31)); // enable euscia2 (uart)
+    NVIC_ISER0 |= (1 << ((INT_EUSCIA1 - 16) & 31)); // enable euscia1 (uart)
     NVIC_ISER0 |= (1 << ((INT_TA0_0 - 16) & 31)); 	// enable timer (timer)
     NVIC_ISER0 |= (1 << ((INT_EUSCIB0 - 16) & 31));	// enable euscib0 (spi)
     NVIC_ISER1 |= (1 << ((INT_PORT4 - 16) & 31));	// enable port4 (ready signal)
@@ -70,6 +72,6 @@ void dynamixel_init(void)
 	joint_mode(0xFE);
 	torque_enable(0xFE);
 	led_on(0xFE);
-	__delay_cycles(48000000); 						// LEDs stay on for 1 second
+	__delay_cycles(4800000); 						// LEDs stay on for 1 second
 	led_off(0xFE);
 }

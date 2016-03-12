@@ -204,12 +204,12 @@ void checksum_gen()
 //////////////////// read/write primitives ////////////////////
 void motor_write()
 {
-	while(UCA2STATW & UCBUSY);					// ensure not busy
+	while(UCA1STATW & UCBUSY);					// ensure not busy
 	P6OUT |= BIT0;								// claim the bus
 	//SCB_SCR_SLEEPONEXIT;				// don't wake up from isr
-	UCA2IE |= UCTXIE;
+	UCA1IE |= UCTXIE;
 	__wfi();
-	while(UCA2STATW & UCBUSY);					// ensure not busy
+	while(UCA1STATW & UCBUSY);					// ensure not busy
 	P6OUT &= ~BIT0;
 }
 
@@ -227,9 +227,9 @@ void sync_write(uint8_t len)
 		checksum_gen();
 
 		/* now send */
-		while(UCA2STATW & UCBUSY);					// ensure not busy
+		while(UCA1STATW & UCBUSY);					// ensure not busy
 		P6OUT |= BIT0;								// claim the bus
-		UCA2IE |= UCTXIE;
+		UCA1IE |= UCTXIE;
 		__wfi();
 	}
 	else if (sync_ids[0] >= 0x10)
@@ -241,9 +241,11 @@ void sync_write(uint8_t len)
 		checksum_gen();
 
 		/* now send */
-		while(UCA2STATW & UCBUSY);					// ensure not busy
+		while(UCA1STATW & UCBUSY);					// ensure not busy
 		P6OUT |= BIT0;								// claim the bus
-		UCA2IE |= UCTXIE;
+		P3OUT |= BIT2;
+		UCA1IE |= UCTXIE;
+		P3OUT |= BIT5;
 		__wfi();
 	}
 	else
@@ -277,19 +279,20 @@ void sync_write(uint8_t len)
 
 		/* send communication protocol one */
 		//SCB_SCR_SLEEPONEXIT;
-		while(UCA2STATW & UCBUSY);					// ensure not busy
+		while(UCA1STATW & UCBUSY);					// ensure not busy
 		P6OUT |= BIT0;								// claim the bus
-		UCA2IE |= UCTXIE;
+		UCA1IE |= UCTXIE;
 		__wfi();							// we need to sleep here in order to send communication 1, then 2.
 
 		/* now send communication protocol two */
-		while(UCA2STATW & UCBUSY);					// ensure not busy
+		while(UCA1STATW & UCBUSY);					// ensure not busy
 		packet = buffer;
 		//SCB_SCR_SLEEPONEXIT;
-		UCA2IE |= UCTXIE;
+		UCA1IE |= UCTXIE;
 		__wfi();
 	}
-	while(UCA2STATW & UCBUSY);					// ensure not busy
+	P3OUT &= ~BIT2 & ~BIT5;
+	while(UCA1STATW & UCBUSY);					// ensure not busy
 	P6OUT &= ~BIT0;
 }
 
@@ -297,9 +300,9 @@ uint16_t motor_read()
 {
 	 motor_write();							// ask to read
 	 //SCB_SCR_SLEEPONEXIT;		// don't wake up from isr
-	 UCA2IE |= UCRXIE;
+	 UCA1IE |= UCRXIE;
 	 __wfi();
-	 UCA2IE &= ~UCRXIE;
+	 UCA1IE &= ~UCRXIE;
 	 return (return_packet & 0xFFFF);
 }
 
@@ -322,14 +325,14 @@ void sync_read(uint8_t len)
 	motor_write();
 
 	/* now, begin reading */
-	UCA2IE |= UCRXIE;
+	UCA1IE |= UCRXIE;
 	do
 	{
 		//SCB_SCR_SLEEPONEXIT;		// don't wake up from isr
 		__wfi();
 		i++;
 	}while(i < len);
-	UCA2IE &= ~UCRXIE;
+	UCA1IE &= ~UCRXIE;
 }
 
 //////////////////// interrupt service routines ////////////////////
@@ -337,7 +340,8 @@ void uart()
 {
 	static uint8_t i = 0, k = 0, l = 0, error = 0;
 	uint8_t temp;
-	u = UCA2IV;
+	P3OUT |= BIT6;
+	u = UCA1IV;
 	switch(u)
 	{
 		case 0x02:
@@ -345,7 +349,7 @@ void uart()
 			{
 				if (GET_INST(packet) == SYNC_READ)
 				{
-					temp = UCA2RXBUF;
+					temp = UCA1RXBUF;
 					i++;
 					if (GET_1(packet) == 2)
 					{
@@ -360,7 +364,7 @@ void uart()
 							while(1);
 						if (i >= 13)
 						{
-							UCA2IE &= ~UCTXIE;
+							UCA1IE &= ~UCTXIE;
 							k++;
 							if (k == (GET_1(packet)))
 								k = 0;
@@ -378,7 +382,7 @@ void uart()
 							while(1);
 						if (i >= 12)
 						{
-							UCA2IE &= ~UCTXIE;
+							UCA1IE &= ~UCTXIE;
 							k++;
 							if (k == (GET_1(packet)))
 								k = 0;
@@ -387,7 +391,7 @@ void uart()
 				}
 				else
 				{
-					temp = UCA2RXBUF;
+					temp = UCA1RXBUF;
 					i++;
 					if (GET_1(packet) == 2)
 					{
@@ -402,7 +406,7 @@ void uart()
 							while(1);
 						if (i >= 13)
 						{
-							UCA2IE &= ~UCTXIE;
+							UCA1IE &= ~UCTXIE;
 							k++;
 							if (k == (GET_1(packet)))
 								k = 0;
@@ -420,7 +424,7 @@ void uart()
 							while(1);
 						if (i >= 13)
 						{
-							UCA2IE &= ~UCTXIE;
+							UCA1IE &= ~UCTXIE;
 							k++;
 							if (k == (GET_1(packet)))
 								k = 0;
@@ -432,7 +436,7 @@ void uart()
 			}
 			else						// comm. protocol one
 			{
-				temp = UCA2RXBUF;
+				temp = UCA1RXBUF;
 				i++;
 				if (GET_1(packet) == 2)
 				{
@@ -447,7 +451,7 @@ void uart()
 						while(1);
 					if (i >= 13)
 					{
-						UCA2IE &= ~UCTXIE;
+						UCA1IE &= ~UCTXIE;
 						k++;
 						if (k == (GET_1(packet)))
 							k = 0;
@@ -465,7 +469,7 @@ void uart()
 						while(1);
 					if (i >= 13)
 					{
-						UCA2IE &= ~UCTXIE;
+						UCA1IE &= ~UCTXIE;
 						k++;
 						if (k == (GET_1(packet)))
 							k = 0;
@@ -483,29 +487,29 @@ void uart()
 				{
 					uint8_t tx[] = { 0xFF, 0xFF, 0xFD, 0x00, 0xFE, GET_PARAM(packet), 0x00, SYNC_WRITE, GOAL_POS, 0x00, 0x04, 0x00 };
 					if (i < 12)
-						UCA2TXBUF = tx[i];
+						UCA1TXBUF = tx[i];
 					else if (i <= ((5*GET_1(packet)) + 11))
 					{
 						switch(k)
 						{
 							case 0:
-								UCA2TXBUF = sync_ids[split];
+								UCA1TXBUF = sync_ids[split];
 								k++;
 								break;
 							case 1:
-								UCA2TXBUF = GET_1(sync_positions[split]);
+								UCA1TXBUF = GET_1(sync_positions[split]);
 								k++;
 								break;
 							case 2:
-								UCA2TXBUF = GET_2(sync_positions[split]);
+								UCA1TXBUF = GET_2(sync_positions[split]);
 								k++;
 								break;
 							case 3:
-								UCA2TXBUF = GET_1(sync_speeds[split]);
+								UCA1TXBUF = GET_1(sync_speeds[split]);
 								k++;
 								break;
 							case 4:
-								UCA2TXBUF = GET_2(sync_speeds[split]);
+								UCA1TXBUF = GET_2(sync_speeds[split]);
 								k = 0;
 								split++;
 								break;
@@ -513,37 +517,41 @@ void uart()
 					}
 					i++;
 					if (i == ((5*GET_1(packet)) + 12))
-						UCA2TXBUF = GET_1(checksum_2);
+						UCA1TXBUF = GET_1(checksum_2);
 					if (i == ((5*GET_1(packet)) + 13))
-						UCA2TXBUF = GET_2(checksum_2);
-					if (i == ((5*GET_1(packet)) + 14))
 					{
+						UCA1TXBUF = GET_2(checksum_2);
 						i = split = 0;
-						UCA2IE &= ~UCTXIE;
+						UCA1IE &= ~UCTXIE;
 					}
+//					if (i == ((5*GET_1(packet)) + 14))
+//					{
+//						i = split = 0;
+//						UCA1IE &= ~UCTXIE;
+//					}
 				}
 				else if (GET_INST(packet) == SYNC_READ)
 				{
 					uint8_t tx[] = { 0xFF, 0xFF, 0xFD, 0x00, 0xFE, GET_PARAM(packet), 0x00, SYNC_READ, XL_CURR_POS, 0x00, 0x02, 0x00 };
 					if (i < 12)
-						UCA2TXBUF = tx[i];
+						UCA1TXBUF = tx[i];
 					else if (i <= (GET_1(packet)) + 11)
-						UCA2TXBUF = sync_ids[i-12];
+						UCA1TXBUF = sync_ids[i-12];
 					i++;
 					if (i == ((GET_1(packet)) + 12))
-						UCA2TXBUF = GET_1(checksum_2);
+						UCA1TXBUF = GET_1(checksum_2);
 					if (i == ((GET_1(packet)) + 13))
-						UCA2TXBUF = GET_2(checksum_2);
+						UCA1TXBUF = GET_2(checksum_2);
 					if (i == (GET_1(packet)+14))
 					{
 						i = 0;
-						UCA2IE &= ~UCTXIE;
+						UCA1IE &= ~UCTXIE;
 					}
 				}
 				else
 				{
 					uint8_t tx[] = { 0xFF, 0xFF, 0xFD, 0x00, GET_ID(packet), GET_PARAM(packet) + 4, 0x00, GET_INST(packet), GET_REG(packet), 0x00, GET_1(packet), GET_2(packet), GET_3(packet), GET_4(packet), GET_1(checksum_2), GET_2(checksum_2) };
-					UCA2TXBUF = tx[i];
+					UCA1TXBUF = tx[i];
 					i++;
 					if (((GET_PARAM(packet) == 0) && (i == 8))   ||
 						((GET_PARAM(packet) == 2) && (i == 11))  ||
@@ -553,7 +561,7 @@ void uart()
 					if (i == 16)
 					{
 						i = 0;
-						UCA2IE &= ~UCTXIE;
+						UCA1IE &= ~UCTXIE;
 					}
 				}
 			}
@@ -563,29 +571,29 @@ void uart()
 				{
 					uint8_t tx[] = { 0xFF, 0xFF, 0XFE, GET_PARAM(packet), SYNC_WRITE, GOAL_POS, 0x04 };
 					if (i < 7)
-						UCA2TXBUF = tx[i];
+						UCA1TXBUF = tx[i];
 					else if (i <= (5*GET_1(packet) + 6))
 					{
 						switch(k)
 						{
 							case 0:
-								UCA2TXBUF = sync_ids[l];
+								UCA1TXBUF = sync_ids[l];
 								k++;
 								break;
 							case 1:
-								UCA2TXBUF = GET_1(sync_positions[l]);
+								UCA1TXBUF = GET_1(sync_positions[l]);
 								k++;
 								break;
 							case 2:
-								UCA2TXBUF = GET_2(sync_positions[l]);
+								UCA1TXBUF = GET_2(sync_positions[l]);
 								k++;
 								break;
 							case 3:
-								UCA2TXBUF = GET_1(sync_speeds[l]);
+								UCA1TXBUF = GET_1(sync_speeds[l]);
 								k++;
 								break;
 							case 4:
-								UCA2TXBUF = GET_2(sync_speeds[l]);
+								UCA1TXBUF = GET_2(sync_speeds[l]);
 								k = 0;
 								l++;
 								break;
@@ -594,16 +602,16 @@ void uart()
 					i++;
 					if (i == ((5*GET_1(packet)) + 7))
 					{
-						UCA2TXBUF = checksum_1;
+						UCA1TXBUF = checksum_1;
 						i = 0;
-						UCA2IE &= ~UCTXIE;
+						UCA1IE &= ~UCTXIE;
 					}
 				}
 				else
 				{
 					uint8_t tx[] = { 0xFF, 0xFF, GET_ID(packet), GET_PARAM(packet) + 2, GET_INST(packet), GET_REG(packet), GET_1(packet), GET_2(packet), GET_3(packet), GET_4(packet), checksum_1 };
 
-					UCA2TXBUF = tx[i];
+					UCA1TXBUF = tx[i];
 					i++;
 
 					if (((GET_PARAM(packet) == 0) && (i == 5))   ||
@@ -614,12 +622,13 @@ void uart()
 					if (i == 11)
 					{
 						i = 0;
-						UCA2IE &= ~UCTXIE;
+						UCA1IE &= ~UCTXIE;
 					}
 				}
 			}
 			break;
 	}
+	P3OUT &= ~BIT6;
 }
 
 void spi()

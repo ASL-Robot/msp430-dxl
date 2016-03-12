@@ -7,15 +7,33 @@
 
 void main(void)
 {
+	P3DIR |= BIT0 | BIT2 | BIT5 | BIT6;
+	P3OUT &= ~BIT0 & ~BIT2 & ~BIT5 & ~BIT6;
 	msp_init();
-	uint8_t i;
-	for (i = 0; i < 2; i++)
-	{
-		sync_ids[i] = i;
-		sync_positions[i] = i;
-		sync_speeds[i] = i;
-	}
-	sync_write(2);
 	//dynamixel_init();
-    while(1);
+	uint8_t i;
+
+    while(1)
+    {
+    	for (i = 0; i < 3; i++)
+    	{
+    		sync_ids[i] = i+0x13;
+    		sync_positions[i] = 400;
+    		sync_speeds[i] = 200;
+    	}
+    	sync_write(3);
+    	P3OUT |= BIT0;
+    	__delay_cycles(4800000);
+
+    	for (i = 0; i < 3; i++)
+    	{
+    		sync_ids[i] = i+0x13;
+    		sync_positions[i] = 600;
+    		sync_speeds[i] = 200;
+    	}
+    	sync_write(3);
+    	P3OUT &= ~BIT0;
+    	__delay_cycles(4800000);
+
+    }
 }
