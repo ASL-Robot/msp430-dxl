@@ -24,7 +24,8 @@ typedef union
 			struct __attribute__((__packed__))
 			{
 				uint8_t gesture;
-				uint8_t padding0[11];
+				uint32_t gstart_time;
+				uint8_t padding0[10];
 			};
 			struct __attribute__((__packed__))
 			{
@@ -34,7 +35,10 @@ typedef union
 		};
 	};
 } movement;
+
+/* arrays */
 movement queue[40];
+
 
 /* communication flags and variables*/
 uint8_t waiting = 1;
@@ -74,11 +78,10 @@ void spi()
 {
 	/* general variables */
 	static uint16_t r_i = 0, num_moves = 0;
-	static uint8_t id, packet_type = 0;
+	static packet_type = 0;
 
 	/* specific data holders */
-	uint8_t g_id = 0;
-	static uint8_t checkpoint = 0, q_num = 0;
+	static uint8_t checkpoint = 0;
 
 	s = UCA3IV;
 	switch(s)

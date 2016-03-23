@@ -16,22 +16,30 @@ void msp_init(void)
 {
     WDTCTL = WDTPW | WDTHOLD;
 
+    /* change vcore to higher voltage */
+    while(PCMCTL1 & PMR_BUSY);
+    PCMCTL0 = (0x695A0000 | AMR__AM_LDO_VCORE1);
+    while(PCMCTL1 & PMR_BUSY);
+    PCMCTL0 = (0x695A0000 | AMR__AM_DCDC_VCORE1);
+    while((PCMCTL1 & PMR_BUSY) && (!(PCMCTL0 & CPM_5)));
+
     /* clock initialization */
     CSKEY = 0x695A;
-    CSCTL0 |= DCOEN | DCORSEL_5;									// 48 mhz oscillator
+    CSCTL0 = 0;
+    CSCTL0 |= DCORSEL_5;
     CSCTL1 |= DIVS_1 | SELS_3 | SELM_3; 							// SMCLK = 24 mhz
     																// MCLK  = 48 mhz
     CSKEY = 0x0000; 												// lock the clock registers
     while((!(CSSTAT & SMCLK_READY)) && (!(CSSTAT & MCLK_READY)));	// wait for clocks to ready
 
     /* uart initialization */
-    P3SEL0 |= (BIT2 | BIT3); 						// P3.2 = UCA2RX;
-    P3SEL1 &= ~(BIT2 | BIT3); 						// P3.3 = UCA2TX;
-    UCA2CTLW0 = UCSWRST;
-    UCA2CTLW0 |= UCSSEL_2;
-    UCA2BRW |= 1;
-    UCA2MCTLW |= 0x81;
-    UCA2CTLW0 &= ~UCSWRST;
+    P2SEL0 |= (BIT2 | BIT3); 						// P2.2 = UCA1RX;
+    P2SEL1 &= ~(BIT2 | BIT3); 						// P2.3 = UCA1TX;
+    UCA1CTLW0 = UCSWRST;
+    UCA1CTLW0 |= UCSSEL_2;
+    UCA1BRW |= 1;
+    UCA1MCTLW |= 0x81;
+    UCA1CTLW0 &= ~UCSWRST;
 
     /* spi initialization */
     P9SEL0 |= (BIT4 | BIT5 | BIT6 | BIT7);			// P9.4 = UCA3STE, P9.5 = UCA3CLK
@@ -67,10 +75,10 @@ void msp_init(void)
 
 void dynamixel_init(void)
 {
-	set_return(0xFE, 0x01);
-	joint_mode(0xFE);
-	torque_enable(0xFE);
-	led_on(0xFE);
-	__delay_cycles(48000000); 						// LEDs stay on for 1 second
-	led_off(0xFE);
+//	set_return(0xFE, 0x01);
+//	joint_mode(0xFE);
+//	torque_enable(0xFE);
+//	led_on(0xFE);
+//	__delay_cycles(48000000); 						// LEDs stay on for 1 second
+//	led_off(0xFE);
 }
