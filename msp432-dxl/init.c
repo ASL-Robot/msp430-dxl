@@ -8,13 +8,17 @@
  */
 
 #include "dynamixel.h"
-#include "dynamixel_apis.h"
 #include <msp.h>
 #include <stdint.h>
 
 void msp_init(void)
 {
     WDTCTL = WDTPW | WDTHOLD;
+
+    /* change the number of wait states */
+    while(FLCTL_RDBRST_CTLSTAT & FLCTL_RDBRST_CTLSTAT_BRST_STAT1);
+    FLCTL_BANK0_RDCTL |= FLCTL_BANK0_RDCTL_WAIT_2;
+    FLCTL_BANK1_RDCTL |= FLCTL_BANK1_RDCTL_WAIT_2;
 
     /* change vcore to higher voltage */
     while(PCMCTL1 & PMR_BUSY);
@@ -56,6 +60,11 @@ void msp_init(void)
     P4IES |= BIT1;									// both microcontrollers.
     P4IE  |= BIT1;
 
+	/* Enable SysTick Module */
+    SYSTICK_STCSR  |= SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_ENABLE_Msk;		// enable core clock
+    SYSTICK_STRVR  |= 1440000-1;												// interrupt fires every 30 ms.
+    //SYSTICK_STCSR  |= SysTick_CTRL_TICKINT_Msk;
+
     /* floating-point unit initialization */
     SCB_CPACR |= (UINT32_C(0x0F) << 20);
 
@@ -65,7 +74,6 @@ void msp_init(void)
 
     /* interrupt settings */
     NVIC_ISER0 |= (1 << ((INT_EUSCIA2 - 16) & 31)); // enable euscia2 (uart)
-    NVIC_ISER0 |= (1 << ((INT_TA0_0 - 16) & 31)); 	// enable timer (timer)
     NVIC_ISER0 |= (1 << ((INT_EUSCIA3 - 16) & 31));	// enable euscia3 (spi)
     NVIC_ISER1 |= (1 << ((INT_PORT4 - 16) & 31));	// enable port4 (ready signal)
     PCMCTL1 &= ~LOCKLPM5;							// unlock ports

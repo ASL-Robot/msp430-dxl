@@ -11,19 +11,21 @@
 #include <msp.h>
 
 /* for sync_write */
-extern uint8_t sync_ids[10];			// holds the ids that need to be written to/read from
-extern uint16_t sync_positions[10];		// holds positions to move to
-extern uint16_t sync_speeds[10];		// holds speeds to move to above positions to
+extern uint8_t sync_ids[8];			// holds the ids that need to be written to/read from
+extern uint16_t sync_positions[8];		// holds positions to move to
+extern uint16_t sync_speeds[8];		// holds speeds to move to above positions to
 extern uint8_t g_id; 					// holds the gesture the motors must perform
+extern uint8_t read_id; 			// holds the id that needs to be read from
+extern uint8_t event_reg; 				// the MOST important "data structure". commands tasks to run
 
-/* for sync_read, for xl-320s only! */
-extern uint16_t readings[10];			// holds current positions of motors from sync_read()
+/* for readings */
+extern uint16_t readings[8];			// holds current positions of motors from sync_read()
+extern float	rad_readings[8];
 
-extern uint64_t packet;					// global packet for sending
-extern uint16_t return_packet; 			// global packet for receiving
+/* should not be accessed w/in any other file */
 extern uint8_t checksum_1;				// global checksum for communication protocol one
 extern uint16_t checksum_2; 			// global checksum for communication protocol two
-extern uint8_t split; 					// global split to define split in sync write
+
 
 /* register addresses (that i think are relevant) */
 #define ID				3
@@ -54,7 +56,18 @@ extern uint8_t split; 					// global split to define split in sync write
 #define SYNC_READ		0x82
 #define SYNC_WRITE 		0x83
 
+/* instruction types for event register */
+#define UART_READY		'G';
+#define UART_WRITING	'E';
+#define UART_READING	'o';
+#define UART_SEND_DONE	'r';
+#define UART_READ 		'g';
+#define DONE			'e';
+
+#define ERROR			'M';
+
 /* motor ids */
+#define WRIST			0x01
 #define THUMB_BASE 		0x10
 #define THUMB_KNUCKLE 	0x11
 #define THUMB_POINT		0x12
@@ -64,6 +77,8 @@ extern uint8_t split; 					// global split to define split in sync write
 #define INDEX_BASE		0x16
 #define INDEX_KNUCKLE	0x17
 #define INDEX_POINT		0x18
+#define PINKY_SPADE		0x19
+#define INDEX_SPADE		0x1A
 
 /* macro functions/variables that may be helpful */
 /* the send packet layout for the write primitive is as follows:

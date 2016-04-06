@@ -14,11 +14,4 @@ extern uint8_t thumbs_up_data[41];
 extern uint8_t point_data[46];
 extern uint8_t okay_data[46];
 
-/* preloaded hand gesture apis */
-void curl();
-void open();
-void thumbs_up();
-void point();
-void okay();
-
 #endif /* GESTURES_H_ */
