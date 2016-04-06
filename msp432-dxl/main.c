@@ -116,17 +116,22 @@ void main(void)
     			buffer[i].position = ticks;
     			buffer[i].speed = rate;
     		}
-    		//while(event_reg != DONE)
-    			//__sleep();
     	}
+    	P5OUT |= BIT0; 						// we're ready!
+    	__sleep();
+		while(event_reg != DONE)
+			__sleep();
     }
 }
 
 void spi()
 {
-	/* general variables */
+	/* receiving variables */
 	static uint16_t r_i = 0, num_moves = 0;
 	static uint8_t packet_type = 0;
+
+	/* transmitting variables */
+	static uint8_t jid = 0;
 
 	s = UCA3IV;
 	switch(s)
@@ -160,11 +165,42 @@ void spi()
 					}
 					break;
 				case 2:
-					break;
 				case 3:
+					UCA3IE |= UCTXIE;
 					break;
 			}
 			break;
+		case UCTXIFG:
+			switch(packet_type)
+			{
+				case 2:
+					if (r_i < 32)
+					{
+						if ((r_i % 4) == 0)
+							UCA3TXBUF = GET_1(rad_readings[jid]);
+						else if ((r_i % 4) == 1)
+							UCA3TXBUF = GET_2(rad_readings[jid]);
+						else if ((r_i % 4) == 2)
+							UCA3TXBUF = GET_3(rad_readings[jid]);
+						else
+						{
+							UCA3TXBUF = GET_4(rad_readings[jid]);
+							jid++;
+						}
+					}
+					else
+					{
+						UCA3TXBUF = checkpoint;
+						packet_type = jid = 0;
+						UCA3IE &= ~UCTXIE;
+					}
+					break;
+				case 3:
+					UCA3TXBUF = error;
+					packet_type = 0;
+					UCA3IE &= ~UCTXIE;
+					break;
+			}
 	}
 }
 
@@ -173,12 +209,14 @@ void port()
 	p = P4IV;
 	switch(p)
 	{
-		case 0x04: break;
+		case 0x04:
+			SYSTICK_STCSR |= SysTick_CTRL_TICKINT_Msk;		// turn on the scheduler.
+			break;
 		default: break;
 	}
 }
 
-void systick()
+void scheduler()
 {
 	__no_operation();
 }

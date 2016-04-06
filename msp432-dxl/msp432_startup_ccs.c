@@ -56,7 +56,7 @@ extern unsigned long __STACK_END;
 extern void uart();
 extern void port();
 extern void spi();
-extern void systick();
+extern void scheduler();
 
 /* To be added by user */
 
@@ -83,7 +83,7 @@ void (* const interruptVectors[])(void) =
     defaultISR,                             /* Debug monitor handler     */
     0,                                      /* Reserved                  */
     defaultISR,                             /* The PendSV handler        */
-    systick,                                /* The SysTick handler       */
+    scheduler,                              /* The SysTick handler       */
     defaultISR,                             /* PSS ISR                   */
     defaultISR,                             /* CS ISR                    */
     defaultISR,                             /* PCM ISR                   */

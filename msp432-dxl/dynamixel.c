@@ -23,10 +23,14 @@ uint8_t event_reg = UART_READY;
 uint8_t sync_ids[8] = { 0 };				// load sync write ids here
 uint16_t sync_positions[8] = { 0 };			// load sync write positions here
 uint16_t sync_speeds[8] = { 0 };			// load sync write speeds here
+
 uint16_t readings[8] = { 0 };				// load current positions here
 float rad_readings[8] = { 0 };				// load current positions (in radians) here
+
 uint8_t g_id = 0;							// load hand gesture here
 uint8_t read_id = 0; 						// load desired id to read from here
+uint8_t checkpoint = 0; 					// increments based on number of movements performed/read
+uint8_t error = 0; 							// indicates that an error has taken place
 
 /* private variables */
 uint8_t checksum_1 = 0;						// global checksum for communication protocol one

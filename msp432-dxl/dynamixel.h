@@ -10,17 +10,19 @@
 #include <stdint.h>
 #include <msp.h>
 
-/* for sync_write */
-extern uint8_t sync_ids[8];			// holds the ids that need to be written to/read from
+/* for writes */
+extern uint8_t sync_ids[8];				// holds the ids that need to be written to/read from
 extern uint16_t sync_positions[8];		// holds positions to move to
-extern uint16_t sync_speeds[8];		// holds speeds to move to above positions to
+extern uint16_t sync_speeds[8];			// holds speeds to move to above positions to
 extern uint8_t g_id; 					// holds the gesture the motors must perform
-extern uint8_t read_id; 			// holds the id that needs to be read from
+extern uint8_t read_id; 				// holds the id that needs to be read from
 extern uint8_t event_reg; 				// the MOST important "data structure". commands tasks to run
 
 /* for readings */
 extern uint16_t readings[8];			// holds current positions of motors from sync_read()
-extern float	rad_readings[8];
+extern float	rad_readings[8];		// holds current positions in radians
+extern uint8_t  checkpoint; 			// holds current checkpoint
+extern uint8_t  error; 					// holds error
 
 /* should not be accessed w/in any other file */
 extern uint8_t checksum_1;				// global checksum for communication protocol one
@@ -57,14 +59,15 @@ extern uint16_t checksum_2; 			// global checksum for communication protocol two
 #define SYNC_WRITE 		0x83
 
 /* instruction types for event register */
-#define UART_READY		'G';
-#define UART_WRITING	'E';
-#define UART_READING	'o';
-#define UART_SEND_DONE	'r';
-#define UART_READ 		'g';
-#define DONE			'e';
+#define UART_READY		'G'
+#define UART_WRITING	'E'
+#define UART_READING	'o'
+#define UART_SEND_DONE	'r'
+#define UART_READ 		'g'
+#define DONE			'e'
 
-#define ERROR			'M';
+#define UART_READ_DONE	'M'
+#define ERROR			'a'
 
 /* motor ids */
 #define WRIST			0x01
@@ -140,15 +143,6 @@ extern uint16_t checksum_2; 			// global checksum for communication protocol two
 
 /* checksum generator */
 void checksum_gen(uint8_t byte);
-
-/* read/write primitives */
-void motor_write();
-void sync_write(uint8_t len);
-uint16_t motor_read();
-void sync_read(uint8_t len);
-
-/* error handling */
-void trap_error(uint8_t error);
 
 #endif /* MSP430_DXL_DYNAMIXEL_H_ */
 

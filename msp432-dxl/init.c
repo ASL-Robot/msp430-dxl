@@ -60,10 +60,9 @@ void msp_init(void)
     P4IES |= BIT1;									// both microcontrollers.
     P4IE  |= BIT1;
 
-	/* Enable SysTick Module */
+	/* scheduler initialization */
     SYSTICK_STCSR  |= SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_ENABLE_Msk;		// enable core clock
-    SYSTICK_STRVR  |= 1440000-1;												// interrupt fires every 30 ms.
-    //SYSTICK_STCSR  |= SysTick_CTRL_TICKINT_Msk;
+    SYSTICK_STRVR  |= 960000-1;													// interrupt fires every 30 ms.
 
     /* floating-point unit initialization */
     SCB_CPACR |= (UINT32_C(0x0F) << 20);
@@ -73,7 +72,7 @@ void msp_init(void)
     P6DIR |= BIT0; 									// direction pin
 
     /* interrupt settings */
-    NVIC_ISER0 |= (1 << ((INT_EUSCIA2 - 16) & 31)); // enable euscia2 (uart)
+    NVIC_ISER0 |= (1 << ((INT_EUSCIA1 - 16) & 31)); // enable euscia1 (uart)
     NVIC_ISER0 |= (1 << ((INT_EUSCIA3 - 16) & 31));	// enable euscia3 (spi)
     NVIC_ISER1 |= (1 << ((INT_PORT4 - 16) & 31));	// enable port4 (ready signal)
     PCMCTL1 &= ~LOCKLPM5;							// unlock ports
@@ -83,10 +82,9 @@ void msp_init(void)
 
 void dynamixel_init(void)
 {
-//	set_return(0xFE, 0x01);
-//	joint_mode(0xFE);
-//	torque_enable(0xFE);
-//	led_on(0xFE);
-//	__delay_cycles(48000000); 						// LEDs stay on for 1 second
-//	led_off(0xFE);
+	read_id = 0;									// load in a joint id of 0
+	event_reg = UART_READ;							// tell the UART to send a read
+	UCA1IE |= UCTXIE; 								// turn on sending interrupts.
+	while(event_reg != UART_READ_DONE)				// sleep while reading; we can take as much time as we need.
+		__sleep();
 }
