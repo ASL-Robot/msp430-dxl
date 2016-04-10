@@ -23,12 +23,15 @@ uint8_t event_reg = UART_READY;
 uint8_t sync_ids[8] = { 0 };				// load sync write ids here
 uint16_t sync_positions[8] = { 0 };			// load sync write positions here
 uint16_t sync_speeds[8] = { 0 };			// load sync write speeds here
-
-uint16_t readings[8] = { 0 };				// load current positions here
-float rad_readings[8] = { 0 };				// load current positions (in radians) here
+uint16_t goal_positions[8] = { 512 }; 		// load theoretical goal positions here
+uint8_t sync_len = 0;						// load sync write length here
 
 uint8_t g_id = 0;							// load hand gesture here
 uint8_t read_id = 0; 						// load desired id to read from here
+
+/* reading variables */
+uint16_t readings[8] = { 0 };				// load current positions here
+float rad_readings[8] = { 0 };				// load current positions (in radians) here
 uint8_t checkpoint = 0; 					// increments based on number of movements performed/read
 uint8_t error = 0; 							// indicates that an error has taken place
 
@@ -90,5 +93,133 @@ void checksum_gen(uint8_t byte)
 //////////////////// interrupt service routine ////////////////////
 void uart()
 {
-	__no_operation();
+	/* receiving variables */
+
+	/* transmitting variables */
+	static uint8_t i = 0;
+	static uint8_t accum = 0;
+	static uint8_t id = 0;
+	uint8_t tx[] = { 0xFF, 0xFF, 0xFE, (5*sync_len)+4, SYNC_WRITE, GOAL_POS, 4 };
+
+	u = UCA1IV;
+	if (u == 0x02) 		// receiving
+	{
+		__no_operation();
+	}
+	else
+	{
+		switch(event_reg)
+		{
+			case UART_READY:
+			case UART_SENDING:
+				event_reg = UART_SENDING;
+
+				/* send hand gesture first */
+				if (!g_id)
+				{
+					switch(g_id)
+					{
+						case 1: 		/* curl */
+							if (i != curl[0])
+							{
+								i++;
+								UCA1TXBUF = curl[i];
+							}
+							else
+								g_id = i = 0;
+							break;
+						case 2: 		/* open */
+							if (i != open[0])
+							{
+								i++;
+								UCA1TXBUF = open[i];
+							}
+							else
+								g_id = i = 0;
+							break;
+						case 3:			/* thumbs up */
+							if (i != thumbs_up[0])
+							{
+								i++;
+								UCA1TXBUF = thumbs_up[i];
+							}
+							else
+								g_id = i = 0;
+							break;
+						case 4: 		/* point */
+							if (i != point[0])
+							{
+								i++;
+								UCA1TXBUF = point[i];
+							}
+							else
+								g_id = i = 0;
+							break;
+						case 5:			/* okay */
+							if (i != okay[0])
+							{
+								i++;
+								UCA1TXBUF = okay[i];
+							}
+							else
+								g_id = i = 0;
+							break;
+					}
+				}
+
+				/* send arm data second */
+				if ((sync_len) && (!g_id) && (id != sync_len))
+				{
+					if (i < 2)
+					{
+						UCA1TXBUF = tx[i];
+						i++;
+					}
+					else if ((i >= 2) && (i < 7))
+					{
+						UCA1TXBUF = tx[i];
+						accum += tx[i];
+						i++;
+					}
+					else
+					{
+						if (((i-7)%5) == 0)
+						{
+							UCA1TXBUF = sync_ids[id];
+							accum += sync_ids[id];
+						}
+						else if (((i-7)%5) == 1)
+						{
+							UCA1TXBUF = GET_1(sync_positions[id]);
+							accum += GET_1(sync_positions[id]);
+						}
+						else if (((i-7)%5) == 2)
+						{
+							UCA1TXBUF = GET_2(sync_positions[id]);
+							accum += GET_2(sync_positions[id]);
+						}
+						else if (((i-7)%5) == 3)
+						{
+							UCA1TXBUF = GET_1(sync_speeds[id]);
+							accum += GET_1(sync_speeds[id]);
+						}
+						else
+						{
+							UCA1TXBUF = GET_2(sync_speeds[id]);
+							accum += GET_2(sync_speeds[id]);
+							id++;
+						}
+						i++;
+					}
+				}
+				else
+				{
+					UCA1TXBUF = ~accum;
+					UCA1IE &= ~UCTXIE;
+					event_reg = UART_SEND_DONE;
+					i = id = 0;
+				}
+				break;
+		}
+	}
 }

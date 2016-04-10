@@ -54,7 +54,7 @@ extern unsigned long __STACK_END;
 
 /* External declarations for the interrupt handlers used by the application. */
 extern void uart();
-extern void port();
+extern void sbc_comm_port();
 extern void spi();
 extern void scheduler();
 
@@ -122,9 +122,9 @@ void (* const interruptVectors[])(void) =
     defaultISR,                             /* PORT1 ISR                 */
     defaultISR,                             /* PORT2 ISR                 */
     defaultISR,                             /* PORT3 ISR                 */
-    port,                          		    /* PORT4 ISR                 */
+    defaultISR,                    		    /* PORT4 ISR                 */
     defaultISR,                             /* PORT5 ISR                 */
-    defaultISR,                             /* PORT6 ISR                 */
+    sbc_comm_port,                          /* PORT6 ISR                 */
     defaultISR,                             /* Reserved 41               */
     defaultISR,                             /* Reserved 42               */
     defaultISR,                             /* Reserved 43               */

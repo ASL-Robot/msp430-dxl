@@ -14,6 +14,9 @@
 extern uint8_t sync_ids[8];				// holds the ids that need to be written to/read from
 extern uint16_t sync_positions[8];		// holds positions to move to
 extern uint16_t sync_speeds[8];			// holds speeds to move to above positions to
+extern uint16_t goal_positions[8]; 		// holds theoretical value of goal position for each motor
+extern uint8_t sync_len; 				// holds how long the non-xl sync write will be
+
 extern uint8_t g_id; 					// holds the gesture the motors must perform
 extern uint8_t read_id; 				// holds the id that needs to be read from
 extern uint8_t event_reg; 				// the MOST important "data structure". commands tasks to run
@@ -60,14 +63,15 @@ extern uint16_t checksum_2; 			// global checksum for communication protocol two
 
 /* instruction types for event register */
 #define UART_READY		'G'
-#define UART_WRITING	'E'
+#define UART_SENDING	'E'
 #define UART_READING	'o'
 #define UART_SEND_DONE	'r'
-#define UART_READ 		'g'
+#define UART_READ		'g'
 #define DONE			'e'
 
 #define UART_READ_DONE	'M'
 #define ERROR			'a'
+#define EMERGENCY 		's'
 
 /* motor ids */
 #define WRIST			0x01
@@ -82,6 +86,16 @@ extern uint16_t checksum_2; 			// global checksum for communication protocol two
 #define INDEX_POINT		0x18
 #define PINKY_SPADE		0x19
 #define INDEX_SPADE		0x1A
+
+/* gesture ids */
+#define curl_id			1
+#define open_id			2
+#define thumbs_up_id	3
+#define point_id		4
+#define okay_id			5
+
+/* other important constants */
+#define GUNSTON 		5 		// fudge factor
 
 /* macro functions/variables that may be helpful */
 /* the send packet layout for the write primitive is as follows:
