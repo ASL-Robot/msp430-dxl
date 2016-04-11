@@ -25,11 +25,10 @@ extern uint8_t event_reg; 				// the MOST important "data structure". commands t
 extern uint16_t readings[8];			// holds current positions of motors from sync_read()
 extern float	rad_readings[8];		// holds current positions in radians
 extern uint8_t  checkpoint; 			// holds current checkpoint
-extern uint8_t  error; 					// holds error
+extern uint16_t  error; 				// holds error
 
 /* should not be accessed w/in any other file */
-extern uint8_t checksum_1;				// global checksum for communication protocol one
-extern uint16_t checksum_2; 			// global checksum for communication protocol two
+extern uint16_t checksum; 				// global checksum for communication protocol two
 
 
 /* register addresses (that i think are relevant) */
@@ -62,16 +61,18 @@ extern uint16_t checksum_2; 			// global checksum for communication protocol two
 #define SYNC_WRITE 		0x83
 
 /* instruction types for event register */
-#define UART_READY		'G'
-#define UART_SENDING	'E'
-#define UART_READING	'o'
-#define UART_SEND_DONE	'r'
-#define UART_READ		'g'
-#define DONE			'e'
+#define UART_READY			'G'
+#define UART_SENDING		'E'
+#define UART_READING		'O'
+#define UART_SEND_DONE		'r'
+#define UART_READ			'g'
+#define DONE				'e'
 
-#define UART_READ_DONE	'M'
-#define ERROR			'a'
-#define EMERGENCY 		's'
+#define UART_READ_DONE		'M'
+#define ERROR				'a'
+#define EMERGENCY 			's'
+#define EMERGENCY_SENDING	'o'
+#define EMERGENCY_DONE		'n'
 
 /* motor ids */
 #define WRIST			0x01
@@ -95,7 +96,7 @@ extern uint16_t checksum_2; 			// global checksum for communication protocol two
 #define okay_id			5
 
 /* other important constants */
-#define GUNSTON 		5 		// fudge factor
+#define GUNSTON 		15 		// fudge factor; turns out that readings can be off by approximately three degrees...
 
 /* macro functions/variables that may be helpful */
 /* the send packet layout for the write primitive is as follows:

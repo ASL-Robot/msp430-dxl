@@ -61,8 +61,8 @@ typedef struct __attribute__((__packed__))
 } processed;
 
 /* arrays */
-raw_data queue[40];
-processed buffer[40];
+raw_data queue[60];
+processed buffer[60];
 
 /* communication flags and variables*/
 uint8_t waiting = 1;
@@ -99,11 +99,11 @@ void main(void)
     			float time_delta = queue[i].end_time - queue[i].start_time;
     			float rate;
     			uint16_t ticks;
-    			if (readings[queue[i].jid] >= (queue[i].goal_pos))
-    				rad_delta = T2R(readings[queue[i].jid]) - queue[i].goal_pos;
+    			if (goal_positions[queue[i].jid] >= (queue[i].goal_pos))
+    				rad_delta = T2R(goal_positions[queue[i].jid]) - queue[i].goal_pos;
     			else
-    				rad_delta = queue[i].goal_pos - T2R(readings[queue[i].jid]);
-    			rate = (9549296/0.111)*(rad_delta/time_delta);		// now in ticks.
+    				rad_delta = queue[i].goal_pos - T2R(goal_positions[queue[i].jid]);
+    			rate = (270000000/PI)*(rad_delta/time_delta);		// now in ticks.
     			if (rate > 1023)
     				rate = 1023;
     			if (R2T(queue[i].goal_pos) > 1023)
@@ -113,10 +113,18 @@ void main(void)
 
     			/* now store in data queue */
     			buffer[i].jid = queue[i].jid;
-    			buffer[i].position = ticks;
+    			buffer[i].position = goal_positions[buffer[i].jid] = ticks;
     			buffer[i].speed = rate;
     		}
     	}
+    	/* since we changed some values in the goal_positions[] array,
+    	 * we now have to restore them all to 512, so when we load data into
+    	 * shared memory, we have a reference as to where the motors "should" be
+    	 * (goal_positions[]) and where the motors "actually" are. (readings[]).
+    	 */
+    	for (i = 0; i < 8; i++)
+    		goal_positions[i] = i;
+
     	buffer[len].jid = 0xFF; 			// stopping call for scheduler
     	P7OUT |= BIT3; 						// we're ready!
     	__sleep();
@@ -212,11 +220,13 @@ void sbc_comm_port()
 	switch(p)
 	{
 		case 0x0E:	// go!
+			event_reg = UART_READY;
 			SYSTICK_STCSR |= SysTick_CTRL_TICKINT_Msk;		// turn on the scheduler.
 			break;
 		case 0x10: 	// emergency!
 			event_reg = EMERGENCY;
-			UCA1IE |= UCTXIE;
+			SYSTICK_STCSR &= ~SysTick_CTRL_TICKINT_Msk;		// turn off the scheduler (for now).
+			UCA1IE |= UCTXIE;								// hold all motors still.
 			break;
 		default: break;
 	}
@@ -225,15 +235,21 @@ void sbc_comm_port()
 void scheduler()
 {
 	/* private variables for scheduler use */
-	static uint16_t time_out = 0; 			// number of times the scheduler was called
-	static uint32_t curr_time = 0; 			// current time
-	static uint8_t i = 0; 					// iterator through processed[] array
-	uint8_t j; 								// general purpose iterator
+	static uint16_t time_out = 0; 				// number of times the scheduler was called
+	static uint32_t curr_time = 0; 				// current time
+	static uint8_t i = 0; 						// iterator through processed[] array
+	uint8_t j; 									// general purpose iterator
+
+	/* checkpoint variables */
+	static uint16_t last_readings[8] = { 0 }; 	// holds the readings from the last scheduler call
+	static uint8_t  strike_out[8] = { 0 }; 		// holds the number of times the motor hasn't made significant progress
+	/* if any index in strike_out[] reaches four, then we know something is wrong. */
 
 	switch(event_reg)
 	{
 		case UART_READY:
-			if (buffer[i].jid == 0xFF)		// last item in buffer
+			/* the last item in the buffer! */
+			if (buffer[i].jid == 0xFF)
 			{
 				if (time_out == 750) 		// time out of approximately 4.5 seconds
 				{
@@ -241,13 +257,17 @@ void scheduler()
 					{
 						sync_ids[j] = j;
 						sync_positions[j] = goal_positions[j] = 512;
-						sync_speeds[j] = 0x100;
+						sync_speeds[j] = 0x150;
 					}
 					g_id = open_id;
 					UCA1IE |= UCTXIE;		// turn on tx interrupts
 					time_out = 0;			// make time_out zero
 				}
+				else
+					time_out++;
 			}
+
+			/* a hand gesture */
 			else if (buffer[i].jid == 0xFE)
 			{
 				if (buffer[i].gstart_time == curr_time)		// make sure that this is meant to send out now
@@ -261,19 +281,68 @@ void scheduler()
 					break;
 				}
 			}
+
+			/* a checkpoint */
 			else if (buffer[i].jid == 0xFD)
 			{
+				/*
+				 * we have to check for two things when it comes to checkpoints:
+				 * 1) has a "lagging" motor moved within three scheduler calls?
+				 * 	  (cause apparently, the slowest motor moves at 0.4 ticks in a scheduler call)
+				 * 		if it has, then move on to number two.
+				 * 		if it hasn't, then we know the motor is jammed/malfunctioning.
+				 * 2) if it's moving, has it reached its final position within 135 scheulder calls,
+				 *    or 810 ms?
+				 *    	if it has, then the motor is totally fine.
+				 *    	if it hasn't, then something's going on...it's moving, just not fast enough.
+				 */
+
 				uint8_t flag = 1;
 				for (j = 0; j < 8; j++)
 				{
+					/* check to see if the motor has reached its final position w/in a certain tolerance */
 					if (!((readings[j] <= (goal_positions[j] + GUNSTON)) &&
 						(readings[j] >= (goal_positions[j] - GUNSTON))))
 					{
+						/* if it's the first time around, then just load it's current position into last_readings[] */
+						if (!strike_out[j])
+						{
+							last_readings[j] = readings[j]; 	// save the current reading; we will use this as a reference next time around.
+							strike_out[j]++; 					// increment strike_out.
+						}
+						else
+						{
+							/* we struck out! :( */
+							if (strike_out[j] == 4)
+							{
+								UCA1IE &= ~(UCTXIE | UCRXIE);	// turn off all uart interrupts
+								error |= BIT7;					// set the error bit
+								P10OUT |= BIT0;					// set error port high
+								return; 						// skip everything else
+							}
+							else
+							{
+								/* hey, we moved a little! that's progress! */
+								if ((readings[j] < last_readings[j]) ||
+									(readings[j] > last_readings[j]))
+									strike_out[j] = 0;
+								/* still haven't moved... */
+								else
+								{
+									last_readings[j] = readings[j]; 	// update
+									strike_out[j]++;
+								}
+							}
+						}
 						flag = 0;
-						break;
+					}
+					else
+					{
+						/* the motor reached its final position, we're good. */
+						strike_out[j] = 0;
 					}
 				}
-				if (flag)				// every motor was within +/-GUNSTON ticks
+				if (flag)	// all the motors have made it; we're good.
 				{
 					checkpoint++;
 					time_out = 0;
@@ -290,16 +359,16 @@ void scheduler()
 						i++;
 					}
 				}
-				else					// if not, read every motor again and update readings[]
+				else		// at least one of the motors is lagging a little.
 				{
-					if (!time_out) 		// if this has not been called previously, let this one slide.
+					if (time_out < 135) // if it's been less than 800 ms, let it slide.
 					{
 						time_out++;
 						event_reg = READ;
 						UCA1IE |= UCTXIE;
 						read_id = 0;
 					}
-					else 				// if this has been called previously, we have an error with one of the motors.
+					else 				// it's been more than 800 ms and a motor still hasn't gotten to its final position; there's a problem.
 					{
 						UCA1IE &= ~(UCTXIE | UCRXIE);
 						error |= BIT7;
@@ -308,7 +377,9 @@ void scheduler()
 					break;
 				}
 			}
-			else						// non-xl motor
+
+			/* an arm motor */
+			else
 			{
 				if (buffer[i].start_time == curr_time)		// make sure that this is meant to send out now
 				{
@@ -349,12 +420,21 @@ void scheduler()
 			break;
 		case UART_SENDING:
 		case UART_READING:
+		case UART_READ:
 			/* if the event_reg states that we are still sending/receiving and the scheduler has been
 			 * triggered, then we took too long.
 			 */
 			UCA1IE &= ~(UCTXIE | UCRXIE);
 			error |= BIT7;
 			P10OUT |= BIT0;
+			break;
+		case EMERGENCY:
+		case EMERGENCY_SENDING:
+			break;
+		case EMERGENCY_DONE:
+			break;
+		case DONE: 	/* congratulations, we actually might graduate... */
+			SYSTICK_STCSR &= ~SysTick_CTRL_TICKINT_Msk;		// turn off the scheduler.
 			break;
 	}
 }

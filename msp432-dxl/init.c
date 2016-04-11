@@ -50,7 +50,6 @@ void msp_init(void)
     P9SEL1 &= ~(BIT4 | BIT5 | BIT6 | BIT7); 		// P9.6 = UCA3MISO, P9.7 = UCA3MOSI
     UCA3CTLW0 = UCSWRST;
     UCA3CTLW0 |= UCMSB | UCMODE_2 | UCSYNC;
-    UCA3IE |= UCRXIE;
     UCA3CTLW0 &= ~UCSWRST;
 
 	/* scheduler initialization */
@@ -93,10 +92,25 @@ void msp_init(void)
 
 void dynamixel_init(void)
 {
+	uint8_t j = 0;
 	read_id = 0;									// load in a joint id of 0
+
+	/* now send everything to home position (just to make sure we're okay!) */
+	for (j = 0; j < 8; j++)
+	{
+		sync_ids[j] = j;
+		sync_positions[j] = 512;
+		sync_speeds[j] = 0x100;
+	}
+	g_id = open_id;
+	UCA1IE |= UCTXIE;
+	while(event_reg != UART_SEND_DONE)
+		__sleep();
+
 	event_reg = UART_READ;							// tell the UART to send a read
 	UCA1IE |= UCTXIE; 								// turn on sending interrupts.
 	while(event_reg != UART_READ_DONE)				// sleep while reading; we can take as much time as we need.
 		__sleep();
 	event_reg = UART_READY;
+    UCA3IE |= UCRXIE;								// we can now turn on spi receive
 }
