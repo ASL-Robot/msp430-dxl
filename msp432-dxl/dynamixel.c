@@ -25,6 +25,7 @@ uint16_t sync_positions[8] = { 0 };			// load sync write positions here
 uint16_t sync_speeds[8] = { 0 };			// load sync write speeds here
 uint16_t goal_positions[8] = { 512 }; 		// load theoretical goal positions here
 uint8_t sync_len = 0;						// load sync write length here
+uint8_t xl_len = 0; 						// load length of xl parameters here
 
 uint8_t g_id = 0;							// load hand gesture here
 uint8_t read_id = 0; 						// load desired id to read from here
@@ -36,7 +37,7 @@ uint8_t checkpoint = 0; 					// increments based on number of movements performe
 uint16_t error = 0; 						// indicates that an error has taken place
 
 /* private variables */
-uint16_t checksum = 0; 						// global checksum for communication protocol two
+uint16_t checksum = 0; 				// global checksum for communication protocol two
 
 /* private interrupt vector holder */
 uint8_t u;
@@ -82,11 +83,8 @@ static const uint16_t lookup[256] =
 void checksum_gen(uint8_t byte)
 {
 	uint8_t i;
-	uint16_t crc_accum = 0;
-
-	i = ((uint16_t)(crc_accum >> 8) ^ byte) & 0xFF;
-	crc_accum = (crc_accum << 8) ^ lookup[i];
-	checksum = crc_accum;
+	i = ((uint16_t)(checksum >> 8) ^ byte) & 0xFF;
+	checksum = (checksum << 8) ^ lookup[i];
 }
 
 //////////////////// interrupt service routine ////////////////////
@@ -100,8 +98,10 @@ void uart()
 	static uint8_t i = 0;
 	static uint8_t accum = 0;
 	static uint8_t id = 0;
+	static uint8_t header = 1;
 	uint8_t tx[] = { 0xFF, 0xFF, 0xFE, (5*sync_len)+4, SYNC_WRITE, GOAL_POS, 4 };
 	uint8_t read_tx[] = { 0xFF, 0xFF, read_id, 4, READ, CURR_POS, 2 };
+	uint8_t head[] = { 0xFF, 0xFF, 0xFD, 0x00, 0xFE, xl_len, 0x00, SYNC_WRITE, GOAL_POS, 0x00, 0x04, 0x00 };
 
 	__enable_interrupts(); 		/* the scheduler/spi should be able to interrupt this.
 								 * if not, we could get deadlocked... */
@@ -191,11 +191,30 @@ void uart()
 		switch(event_reg)
 		{
 			case UART_READY:
+				i = 0;
 				P2OUT |= BIT1;
 				event_reg = UART_SENDING;
+				if(g_id)
+				{
+					switch(g_id)
+					{
+						case 1: xl_len = curl[0] + 7; break;
+						case 2: xl_len = open[0] + 7; break;
+						case 3: xl_len = thumbs_up[0] + 7; break;
+						case 4: xl_len = point[0] + 7; break;
+						case 5: xl_len = okay[0] + 7; break;
+					}
+				}
 			case UART_SENDING:
-				/* send hand gesture first */
-				if (g_id)
+				if (g_id && header)
+				{
+					UCA1TXBUF = head[i];
+					checksum_gen(head[i]);
+					i++;
+					if (i == 12)
+						header = i = 0; 	// sending header bytes is now done.
+				}
+				else if (g_id && (!header))
 				{
 					switch(g_id)
 					{
@@ -214,7 +233,7 @@ void uart()
 							else
 							{
 								UCA1TXBUF = GET_2(checksum);
-								g_id = i = 0;
+								g_id = i = checksum = 0;
 							}
 							break;
 						case 2: 		/* open */
@@ -232,7 +251,7 @@ void uart()
 							else
 							{
 								UCA1TXBUF = GET_2(checksum);
-								g_id = i = 0;
+								g_id = i = checksum = 0;
 							}
 							break;
 						case 3:			/* thumbs up */
@@ -250,7 +269,7 @@ void uart()
 							else
 							{
 								UCA1TXBUF = GET_2(checksum);
-								g_id = i = 0;
+								g_id = i = checksum = 0;
 							}
 							break;
 						case 4: 		/* point */
@@ -268,7 +287,7 @@ void uart()
 							else
 							{
 								UCA1TXBUF = GET_2(checksum);
-								g_id = i = 0;
+								g_id = i = checksum = 0;
 							}
 							break;
 						case 5:			/* okay */
@@ -286,14 +305,12 @@ void uart()
 							else
 							{
 								UCA1TXBUF = GET_2(checksum);
-								g_id = i = 0;
+								g_id = i = checksum = 0;
 							}
 							break;
 					}
 				}
-
-				/* send arm data second */
-				if ((sync_len) && (!g_id) && (id != sync_len))
+				else if ((sync_len) && (id != sync_len))
 				{
 					if (i < 2)
 					{
@@ -344,6 +361,7 @@ void uart()
 					P2OUT &= ~BIT1;
 					event_reg = UART_SEND_DONE;
 					i = id = accum = sync_len = 0;
+					header = 1;
 				}
 				break;
 			case UART_READ:
@@ -366,85 +384,6 @@ void uart()
 					UCA1IE &= ~UCTXIE;
 					P2OUT &= ~BIT1;
 					UCA1IE |= UCRXIE;
-				}
-				break;
-			case EMERGENCY:
-				i = id = j = accum = 0;
-				sync_len = 8;
-				P2OUT |= BIT1;
-				event_reg = EMERGENCY_SENDING;
-			case EMERGENCY_SENDING:
-				if (i < open[i])
-				{
-					i++;
-					UCA1TXBUF = open[i];
-					checksum_gen(open[i]);
-				}
-				else if (i == open[i])
-				{
-					i++;
-					UCA1TXBUF = GET_1(checksum);
-				}
-				else if (i == open[i]+1)
-				{
-					i++;
-					UCA1TXBUF = GET_2(checksum);
-				}
-				else
-				{
-					if (id < 8)
-					{
-						if (j < 2)
-						{
-							UCA1TXBUF = tx[j];
-							j++;
-						}
-						else if ((j >= 2) && (j < 7))
-						{
-							UCA1TXBUF = tx[j];
-							accum += UCA1TXBUF;
-							j++;
-						}
-						else
-						{
-							if (((j-7)%5) == 0)
-							{
-								UCA1TXBUF = id;
-								accum += UCA1TXBUF;
-							}
-							else if (((j-7)%5) == 1)
-							{
-								UCA1TXBUF = GET_1(readings[id]);
-								accum += UCA1TXBUF;
-							}
-							else if (((j-7)%5) == 2)
-							{
-								UCA1TXBUF = GET_2(readings[id]);
-								accum += UCA1TXBUF;
-							}
-							else if (((j-7)%5) == 3)
-							{
-								UCA1TXBUF = 0x00;
-								accum += UCA1TXBUF;
-							}
-							else
-							{
-								UCA1TXBUF = 0x01;
-								accum += UCA1TXBUF;
-								id++;
-							}
-							j++;
-						}
-					}
-					else
-					{
-						UCA1TXBUF = ~accum;
-						UCA1IE &= ~UCTXIE;
-						P2OUT &= ~BIT1;
-						event_reg = EMERGENCY_DONE;
-						i = id = accum = j = sync_len = 0;
-						SYSTICK_STCSR |= SysTick_CTRL_TICKINT_Msk;		// turn off the scheduler.
-					}
 				}
 				break;
 		}

@@ -9,7 +9,7 @@
 
 /* preloaded hand gesture data buffers */
 extern uint8_t curl[41];
-extern uint8_t open[46];
+extern uint8_t open[56];
 extern uint8_t thumbs_up[41];
 extern uint8_t point[46];
 extern uint8_t okay[46];

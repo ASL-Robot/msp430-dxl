@@ -75,7 +75,7 @@ void main(void)
 {
 	uint8_t i;
 	msp_init();
-	//dynamixel_init();
+	dynamixel_init();
     while(1)
     {
     	while(waiting)
@@ -123,7 +123,7 @@ void main(void)
     	 * (goal_positions[]) and where the motors "actually" are. (readings[]).
     	 */
     	for (i = 0; i < 8; i++)
-    		goal_positions[i] = i;
+    		goal_positions[i] = 512;
 
     	buffer[len].jid = 0xFF; 			// stopping call for scheduler
     	P7OUT |= BIT3; 						// we're ready!
@@ -272,7 +272,7 @@ void scheduler()
 			{
 				if (buffer[i].gstart_time == curr_time)		// make sure that this is meant to send out now
 				{
-					g_id = buffer[i].gesture;
+					g_id = buffer[i].gesture;				// load gesture into shared memory
 					i++;
 				}
 				else										// if not, just send out what we have now
