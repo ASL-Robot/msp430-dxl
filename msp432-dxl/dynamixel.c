@@ -188,10 +188,11 @@ void uart()
 	}
 	else						/* transmitting info to motors */
 	{
+		P3OUT |= BIT6;
 		switch(event_reg)
 		{
 			case UART_READY:
-				i = 0;
+				i = accum = 0;
 				P2OUT |= BIT1;
 				event_reg = UART_SENDING;
 				if(g_id)
@@ -387,5 +388,6 @@ void uart()
 				}
 				break;
 		}
+		P3OUT &= ~BIT6;
 	}
 }

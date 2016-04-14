@@ -81,6 +81,9 @@ void msp_init(void)
     P10DIR |= BIT0;		// "error" initialization
     P10OUT &= ~BIT0;
 
+    P3DIR |= BIT6;
+    P3OUT &= ~BIT6;
+
     /* interrupt settings */
     NVIC_ISER0 |= (1 << ((INT_EUSCIA1 - 16) & 31)); // enable euscia1 (uart)
     NVIC_ISER0 |= (1 << ((INT_EUSCIA3 - 16) & 31));	// enable euscia3 (spi)
