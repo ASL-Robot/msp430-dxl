@@ -18,6 +18,7 @@ extern uint16_t goal_positions[8]; 		// holds theoretical value of goal position
 extern uint8_t sync_len; 				// holds how long the non-xl sync write will be
 
 extern uint8_t g_id; 					// holds the gesture the motors must perform
+extern uint8_t xl_len; 					// holds the length of the sync_write packet for a gesture
 extern uint8_t read_id; 				// holds the id that needs to be read from
 extern uint8_t event_reg; 				// the MOST important "data structure". commands tasks to run
 

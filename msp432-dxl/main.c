@@ -287,6 +287,39 @@ void scheduler()
 				if (buffer[i].gstart_time == curr_time)		// make sure that this is meant to send out now
 				{
 					g_id = buffer[i].gesture;				// load gesture into shared memory
+					switch(g_id)
+					{
+						case 1: xl_len = curl[0] + 7; break;
+						case 2: xl_len = open[0] + 7; break;
+						case 3: xl_len = thumbs_up[0] + 7; break;
+						case 4: xl_len = point[0] + 7; break;
+						case 5: xl_len = okay[0] + 7; break;
+						case 6: xl_len = letter_a[0] + 7; break;
+						case 7: xl_len = letter_b[0] + 7; break;
+						case 8: xl_len = letter_c[0] + 7; break;
+						case 9: xl_len = letter_d[0] + 7; break;
+						case 10: xl_len = letter_e[0] + 7; break;
+						case 11: xl_len = letter_f[0] + 7; break;
+						case 12: xl_len = letter_g[0] + 7; break;
+						case 13: xl_len = letter_h[0] + 7; break;
+						case 14: xl_len = letter_i[0] + 7; break;
+						case 15: xl_len = letter_k[0] + 7; break;
+						case 16: xl_len = letter_l[0] + 7; break;
+						case 17: xl_len = letter_n[0] + 7; break;
+						case 18: xl_len = letter_o[0] + 7; break;
+						case 19: xl_len = letter_r[0] + 7; break;
+						case 20: xl_len = letter_s[0] + 7; break;
+						case 21: xl_len = letter_t[0] + 7; break;
+						case 22: xl_len = letter_u[0] + 7; break;
+						case 23: xl_len = letter_v[0] + 7; break;
+						case 24: xl_len = letter_x[0] + 7; break;
+						case 25: xl_len = letter_y[0] + 7; break;
+						default:
+							event_reg = ERROR;
+							error |= BIT7;
+							P10OUT |= BIT0;
+							break;
+					}
 					i++;
 				}
 				else										// if not, just send out what we have now
