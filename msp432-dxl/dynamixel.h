@@ -74,6 +74,8 @@ extern uint16_t checksum; 				// global checksum for communication protocol two
 #define EMERGENCY_SENDING	'o'
 #define EMERGENCY_DONE		'n'
 
+#define BEGIN				'U'
+
 /* motor ids */
 #define WRIST			0x01
 #define THUMB_BASE 		0x10

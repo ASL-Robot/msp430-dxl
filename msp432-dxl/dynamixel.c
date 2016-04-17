@@ -23,7 +23,7 @@ uint8_t event_reg = UART_READY;
 uint8_t sync_ids[8] = { 0 };				// load sync write ids here
 uint16_t sync_positions[8] = { 0 };			// load sync write positions here
 uint16_t sync_speeds[8] = { 0 };			// load sync write speeds here
-uint16_t goal_positions[8] = { 512 }; 		// load theoretical goal positions here
+uint16_t goal_positions[8] = { 0x200, 0x800, 0x800, 0x800, 0x800, 0x800, 0x800, 0x800 }; // load theoretical goal positions here
 uint8_t sync_len = 0;						// load sync write length here
 uint8_t xl_len = 0; 						// load length of xl parameters here
 
@@ -167,6 +167,7 @@ void uart()
 					{
 						event_reg = UART_READ;
 						read_id++;
+						__delay_cycles(10);
 						UCA1IE &= ~UCRXIE;
 						UCA1IE |= UCTXIE;
 					}
@@ -188,12 +189,13 @@ void uart()
 	}
 	else						/* transmitting info to motors */
 	{
-		P3OUT |= BIT6;
 		switch(event_reg)
 		{
 			case UART_READY:
 				i = accum = 0;
+				header = 1;
 				P2OUT |= BIT1;
+				__delay_cycles(10);
 				event_reg = UART_SENDING;
 				if(g_id)
 				{
@@ -309,6 +311,12 @@ void uart()
 								g_id = i = checksum = 0;
 							}
 							break;
+						default:
+							event_reg = ERROR;
+							UCA1IE &= ~(UCTXIE | UCRXIE);	// turn off interrupts
+							error |= BIT8;					// synchronization error
+							P10OUT |= BIT0;					// throw error pin high
+							break;
 					}
 				}
 				else if ((sync_len) && (id != sync_len))
@@ -363,10 +371,13 @@ void uart()
 					event_reg = UART_SEND_DONE;
 					i = id = accum = sync_len = 0;
 					header = 1;
+					__delay_cycles(10);
+					P2OUT &= ~BIT1;
 				}
 				break;
 			case UART_READ:
 				P2OUT |= BIT1;
+				__delay_cycles(10);
 				if (i < 2)
 				{
 					UCA1TXBUF = read_tx[i];
@@ -383,11 +394,11 @@ void uart()
 					UCA1TXBUF = ~accum;
 					i = accum = 0;
 					UCA1IE &= ~UCTXIE;
+					__delay_cycles(10);
 					P2OUT &= ~BIT1;
 					UCA1IE |= UCRXIE;
 				}
 				break;
 		}
-		P3OUT &= ~BIT6;
 	}
 }

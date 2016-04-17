@@ -81,9 +81,6 @@ void msp_init(void)
     P10DIR |= BIT0;		// "error" initialization
     P10OUT &= ~BIT0;
 
-    P3DIR |= BIT6;
-    P3OUT &= ~BIT6;
-
     /* interrupt settings */
     NVIC_ISER0 |= (1 << ((INT_EUSCIA1 - 16) & 31)); // enable euscia1 (uart)
     NVIC_ISER0 |= (1 << ((INT_EUSCIA3 - 16) & 31));	// enable euscia3 (spi)
@@ -95,7 +92,7 @@ void msp_init(void)
 
 void dynamixel_init(void)
 {
-	uint8_t j = 0;
+	uint8_t j;
 	read_id = 0;									// load in a joint id of 0
 	event_reg = UART_READY;
 
@@ -103,8 +100,11 @@ void dynamixel_init(void)
 	for (j = 0; j < 8; j++)
 	{
 		sync_ids[j] = j;
-		sync_positions[j] = 512;
 		sync_speeds[j] = 0x100;
+		if (!j)
+			sync_positions[j] = goal_positions[j] = 0x200;
+		else
+			sync_positions[j] = goal_positions[j] = 0x800;
 	}
 	sync_len = 8;
 	g_id = open_id;

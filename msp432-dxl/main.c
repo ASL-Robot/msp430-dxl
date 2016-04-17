@@ -78,8 +78,7 @@ void main(void)
 	dynamixel_init();
     while(1)
     {
-    	while(waiting)
-    		__wfi();
+    	while(waiting);
     	for (i = 0; i < len; i++)
     	{
     		if (queue[i].jid == 0xFE)		// gesture
@@ -99,17 +98,28 @@ void main(void)
     			float time_delta = queue[i].end_time - queue[i].start_time;
     			float rate;
     			uint16_t ticks;
-    			if (goal_positions[queue[i].jid] >= (queue[i].goal_pos))
-    				rad_delta = T2R(goal_positions[queue[i].jid]) - queue[i].goal_pos;
+    			if (!queue[i].jid)
+    			{
+					if (goal_positions[queue[i].jid] >= R2T(queue[i].goal_pos))
+						rad_delta = T2R(goal_positions[queue[i].jid]) - queue[i].goal_pos;
+					else
+						rad_delta = queue[i].goal_pos - T2R(goal_positions[queue[i].jid]);
+					rate = (270000000/PI)*(rad_delta/time_delta);		// now in ticks.
+					if (rate > 0x3FF)
+						rate = 0x3FF;
+					ticks = R2T(rad_delta);
+    			}
     			else
-    				rad_delta = queue[i].goal_pos - T2R(goal_positions[queue[i].jid]);
-    			rate = (270000000/PI)*(rad_delta/time_delta);		// now in ticks.
-    			if (rate > 1023)
-    				rate = 1023;
-    			if (R2T(queue[i].goal_pos) > 1023)
-    				ticks = 1023;
-    			else
-    				ticks = R2T(rad_delta);
+    			{
+    				if (goal_positions[queue[i].jid] >= MR2T(queue[i].goal_pos))
+    					rad_delta = MT2R(goal_positions[queue[i].jid]) - queue[i].goal_pos;
+    				else
+    					rad_delta = queue[i].goal_pos - MT2R(goal_positions[queue[i].jid]);
+    				rate = (270000000/PI)*(rad_delta/time_delta);		// now in ticks.
+    				if (rate > 0x3FF)
+    					rate = 0x3FF;
+    				ticks = MR2T(rad_delta);
+    			}
 
     			/* now store in data queue */
     			buffer[i].jid = queue[i].jid;
@@ -123,13 +133,17 @@ void main(void)
     	 * (goal_positions[]) and where the motors "actually" are. (readings[]).
     	 */
     	for (i = 0; i < 8; i++)
-    		goal_positions[i] = 512;
-
+    	{
+    		if (!i)
+    			goal_positions[i] = 0x200;
+    		else
+    			goal_positions[i] = 0x800;
+    	}
     	buffer[len].jid = 0xFF; 			// stopping call for scheduler
     	P7OUT |= BIT3; 						// we're ready!
-    	__sleep();
-		while(event_reg != DONE)
-			__sleep();
+    	while(event_reg != BEGIN);
+    	event_reg = UART_READY;
+		while(event_reg != DONE);
     }
 }
 
@@ -220,7 +234,7 @@ void sbc_comm_port()
 	switch(p)
 	{
 		case 0x0E:	// go!
-			event_reg = UART_READY;
+			event_reg = BEGIN;
 			SYSTICK_STCSR |= SysTick_CTRL_TICKINT_Msk;		// turn on the scheduler.
 			break;
 		case 0x10: 	// emergency!
