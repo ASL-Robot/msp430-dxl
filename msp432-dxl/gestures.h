@@ -28,12 +28,12 @@ extern uint8_t letter_k[46];		/* 15 */
 extern uint8_t letter_l[46];		/* 16 */
 extern uint8_t letter_n[56];		/* 17 */
 extern uint8_t letter_o[46];		/* 18 */
-extern uint8_t letter_r[56];		/* 19 */
-extern uint8_t letter_s[46];		/* 20 */
-extern uint8_t letter_t[56];		/* 21 */
-extern uint8_t letter_u[51];		/* 22 */
-extern uint8_t letter_v[56];		/* 23 */
-extern uint8_t letter_x[46];		/* 24 */
-extern uint8_t letter_y[46];		/* 25 */
+//extern uint8_t letter_r[56];		/* 19 */
+//extern uint8_t letter_s[46];		/* 20 */
+//extern uint8_t letter_t[56];		/* 21 */
+//extern uint8_t letter_u[51];		/* 22 */
+//extern uint8_t letter_v[56];		/* 23 */
+//extern uint8_t letter_x[46];		/* 24 */
+//extern uint8_t letter_y[46];		/* 25 */
 
 #endif /* GESTURES_H_ */

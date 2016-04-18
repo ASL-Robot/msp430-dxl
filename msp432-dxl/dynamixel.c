@@ -117,6 +117,7 @@ void uart()
 			case 1:
 				if (rx != 0xFF)						// first two packets are 0xFF; if not...
 				{
+					SYSTICK_STCSR &= ~SysTick_CTRL_TICKINT_Msk;		// turn off the scheduler (for now).
 					event_reg = ERROR;
 					UCA1IE &= ~(UCTXIE | UCRXIE);	// turn off interrupts
 					error |= BIT8;					// synchronization error
@@ -133,6 +134,7 @@ void uart()
 			case 3:
 				if (rx != 0x04)						// length should always be four; if not...
 				{
+					SYSTICK_STCSR &= ~SysTick_CTRL_TICKINT_Msk;		// turn off the scheduler (for now).
 					event_reg = ERROR;
 					UCA1IE &= ~(UCTXIE | UCRXIE);	// turn off interrupts
 					error |= BIT8;					// synchronization error
@@ -180,6 +182,7 @@ void uart()
 				}
 				else
 				{
+					SYSTICK_STCSR &= ~SysTick_CTRL_TICKINT_Msk;		// turn off the scheduler (for now).
 					event_reg = ERROR;
 					error |= BIT4;
 					UCA1IE &= ~UCRXIE;
@@ -228,10 +231,11 @@ void uart()
 								g_id = i = checksum = 0;
 								if (!sync_len)
 								{
-									event_reg = UART_SEND_DONE;
+									/* CHANGE THIS BACK TO SEND DONE! */
+									event_reg = UART_READ_DONE;
 									UCA1IE &= ~UCTXIE;
 									header = 1;
-									__delay_cycles(10);
+									__delay_cycles(110);
 									P2OUT &= ~BIT1;
 								}
 							}
@@ -254,10 +258,11 @@ void uart()
 								g_id = i = checksum = 0;
 								if (!sync_len)
 								{
-									event_reg = UART_SEND_DONE;
+									/* CHANGE THIS BACK TO SEND DONE! */
+									event_reg = UART_READ_DONE;
 									UCA1IE &= ~UCTXIE;
 									header = 1;
-									__delay_cycles(10);
+									__delay_cycles(110);
 									P2OUT &= ~BIT1;
 								}
 							}
@@ -280,10 +285,11 @@ void uart()
 								g_id = i = checksum = 0;
 								if (!sync_len)
 								{
-									event_reg = UART_SEND_DONE;
+									/* CHANGE THIS BACK TO SEND DONE! */
+									event_reg = UART_READ_DONE;
 									UCA1IE &= ~UCTXIE;
 									header = 1;
-									__delay_cycles(10);
+									__delay_cycles(110);
 									P2OUT &= ~BIT1;
 								}
 							}
@@ -309,7 +315,7 @@ void uart()
 									event_reg = UART_SEND_DONE;
 									UCA1IE &= ~UCTXIE;
 									header = 1;
-									__delay_cycles(10);
+									__delay_cycles(110);
 									P2OUT &= ~BIT1;
 								}
 							}
@@ -335,10 +341,11 @@ void uart()
 									event_reg = UART_SEND_DONE;
 									UCA1IE &= ~UCTXIE;
 									header = 1;
-									__delay_cycles(10);
+									__delay_cycles(110);
 									P2OUT &= ~BIT1;
 								}
 							}
+							break;
 						case 6:
 							if (i < letter_a[0])
 							{
@@ -360,7 +367,7 @@ void uart()
 									event_reg = UART_SEND_DONE;
 									UCA1IE &= ~UCTXIE;
 									header = 1;
-									__delay_cycles(10);
+									__delay_cycles(110);
 									P2OUT &= ~BIT1;
 								}
 							}
@@ -386,7 +393,7 @@ void uart()
 									event_reg = UART_SEND_DONE;
 									UCA1IE &= ~UCTXIE;
 									header = 1;
-									__delay_cycles(10);
+									__delay_cycles(110);
 									P2OUT &= ~BIT1;
 								}
 							}
@@ -412,7 +419,7 @@ void uart()
 									event_reg = UART_SEND_DONE;
 									UCA1IE &= ~UCTXIE;
 									header = 1;
-									__delay_cycles(10);
+									__delay_cycles(110);
 									P2OUT &= ~BIT1;
 								}
 							}
@@ -438,7 +445,7 @@ void uart()
 									event_reg = UART_SEND_DONE;
 									UCA1IE &= ~UCTXIE;
 									header = 1;
-									__delay_cycles(10);
+									__delay_cycles(110);
 									P2OUT &= ~BIT1;
 								}
 							}
@@ -464,7 +471,7 @@ void uart()
 									event_reg = UART_SEND_DONE;
 									UCA1IE &= ~UCTXIE;
 									header = 1;
-									__delay_cycles(10);
+									__delay_cycles(110);
 									P2OUT &= ~BIT1;
 								}
 							}
@@ -490,7 +497,7 @@ void uart()
 									event_reg = UART_SEND_DONE;
 									UCA1IE &= ~UCTXIE;
 									header = 1;
-									__delay_cycles(10);
+									__delay_cycles(110);
 									P2OUT &= ~BIT1;
 								}
 							}
@@ -516,7 +523,7 @@ void uart()
 									event_reg = UART_SEND_DONE;
 									UCA1IE &= ~UCTXIE;
 									header = 1;
-									__delay_cycles(10);
+									__delay_cycles(110);
 									P2OUT &= ~BIT1;
 								}
 							}
@@ -542,7 +549,7 @@ void uart()
 									event_reg = UART_SEND_DONE;
 									UCA1IE &= ~UCTXIE;
 									header = 1;
-									__delay_cycles(10);
+									__delay_cycles(110);
 									P2OUT &= ~BIT1;
 								}
 							}
@@ -568,7 +575,7 @@ void uart()
 									event_reg = UART_SEND_DONE;
 									UCA1IE &= ~UCTXIE;
 									header = 1;
-									__delay_cycles(10);
+									__delay_cycles(110);
 									P2OUT &= ~BIT1;
 								}
 							}
@@ -594,7 +601,7 @@ void uart()
 									event_reg = UART_SEND_DONE;
 									UCA1IE &= ~UCTXIE;
 									header = 1;
-									__delay_cycles(10);
+									__delay_cycles(110);
 									P2OUT &= ~BIT1;
 								}
 							}
@@ -620,7 +627,7 @@ void uart()
 									event_reg = UART_SEND_DONE;
 									UCA1IE &= ~UCTXIE;
 									header = 1;
-									__delay_cycles(10);
+									__delay_cycles(110);
 									P2OUT &= ~BIT1;
 								}
 							}
@@ -646,7 +653,7 @@ void uart()
 									event_reg = UART_SEND_DONE;
 									UCA1IE &= ~UCTXIE;
 									header = 1;
-									__delay_cycles(10);
+									__delay_cycles(110);
 									P2OUT &= ~BIT1;
 								}
 							}
@@ -672,194 +679,195 @@ void uart()
 									event_reg = UART_SEND_DONE;
 									UCA1IE &= ~UCTXIE;
 									header = 1;
-									__delay_cycles(10);
+									__delay_cycles(110);
 									P2OUT &= ~BIT1;
 								}
 							}
 							break;
-						case 19:
-							if (i < letter_r[0])
-							{
-								i++;
-								UCA1TXBUF = letter_r[i];
-								checksum_gen(letter_r[i]);
-							}
-							else if (i == letter_r[0])
-							{
-								i++;
-								UCA1TXBUF = GET_1(checksum);
-							}
-							else
-							{
-								UCA1TXBUF = GET_2(checksum);
-								g_id = i = checksum = 0;
-								if (!sync_len)
-								{
-									event_reg = UART_SEND_DONE;
-									UCA1IE &= ~UCTXIE;
-									header = 1;
-									__delay_cycles(10);
-									P2OUT &= ~BIT1;
-								}
-							}
-							break;
-						case 20:
-							if (i < letter_s[0])
-							{
-								i++;
-								UCA1TXBUF = letter_s[i];
-								checksum_gen(letter_s[i]);
-							}
-							else if (i == letter_s[0])
-							{
-								i++;
-								UCA1TXBUF = GET_1(checksum);
-							}
-							else
-							{
-								UCA1TXBUF = GET_2(checksum);
-								g_id = i = checksum = 0;
-								if (!sync_len)
-								{
-									event_reg = UART_SEND_DONE;
-									UCA1IE &= ~UCTXIE;
-									header = 1;
-									__delay_cycles(10);
-									P2OUT &= ~BIT1;
-								}
-							}
-							break;
-						case 21:
-							if (i < letter_t[0])
-							{
-								i++;
-								UCA1TXBUF = letter_t[i];
-								checksum_gen(letter_t[i]);
-							}
-							else if (i == letter_t[0])
-							{
-								i++;
-								UCA1TXBUF = GET_1(checksum);
-							}
-							else
-							{
-								UCA1TXBUF = GET_2(checksum);
-								g_id = i = checksum = 0;
-								if (!sync_len)
-								{
-									event_reg = UART_SEND_DONE;
-									UCA1IE &= ~UCTXIE;
-									header = 1;
-									__delay_cycles(10);
-									P2OUT &= ~BIT1;
-								}
-							}
-							break;
-						case 22:
-							if (i < letter_u[0])
-							{
-								i++;
-								UCA1TXBUF = letter_u[i];
-								checksum_gen(letter_u[i]);
-							}
-							else if (i == letter_u[0])
-							{
-								i++;
-								UCA1TXBUF = GET_1(checksum);
-							}
-							else
-							{
-								UCA1TXBUF = GET_2(checksum);
-								g_id = i = checksum = 0;
-								if (!sync_len)
-								{
-									event_reg = UART_SEND_DONE;
-									UCA1IE &= ~UCTXIE;
-									header = 1;
-									__delay_cycles(10);
-									P2OUT &= ~BIT1;
-								}
-							}
-							break;
-						case 23:
-							if (i < letter_v[0])
-							{
-								i++;
-								UCA1TXBUF = letter_v[i];
-								checksum_gen(letter_v[i]);
-							}
-							else if (i == letter_v[0])
-							{
-								i++;
-								UCA1TXBUF = GET_1(checksum);
-							}
-							else
-							{
-								UCA1TXBUF = GET_2(checksum);
-								g_id = i = checksum = 0;
-								if (!sync_len)
-								{
-									event_reg = UART_SEND_DONE;
-									UCA1IE &= ~UCTXIE;
-									header = 1;
-									__delay_cycles(10);
-									P2OUT &= ~BIT1;
-								}
-							}
-							break;
-						case 24:
-							if (i < letter_x[0])
-							{
-								i++;
-								UCA1TXBUF = letter_x[i];
-								checksum_gen(letter_x[i]);
-							}
-							else if (i == letter_x[0])
-							{
-								i++;
-								UCA1TXBUF = GET_1(checksum);
-							}
-							else
-							{
-								UCA1TXBUF = GET_2(checksum);
-								g_id = i = checksum = 0;
-								if (!sync_len)
-								{
-									event_reg = UART_SEND_DONE;
-									UCA1IE &= ~UCTXIE;
-									header = 1;
-									__delay_cycles(10);
-									P2OUT &= ~BIT1;
-								}
-							}
-							break;
-						case 25:
-							if (i < letter_y[0])
-							{
-								i++;
-								UCA1TXBUF = letter_y[i];
-								checksum_gen(letter_y[i]);
-							}
-							else if (i == letter_y[0])
-							{
-								i++;
-								UCA1TXBUF = GET_1(checksum);
-							}
-							else
-							{
-								UCA1TXBUF = GET_2(checksum);
-								g_id = i = checksum = 0;
-								if (!sync_len)
-								{
-									event_reg = UART_SEND_DONE;
-									UCA1IE &= ~UCTXIE;
-									header = 1;
-									__delay_cycles(10);
-									P2OUT &= ~BIT1;
-								}
-							}
-							break;
+//						case 19:
+//							if (i < letter_r[0])
+//							{
+//								i++;
+//								UCA1TXBUF = letter_r[i];
+//								checksum_gen(letter_r[i]);
+//							}
+//							else if (i == letter_r[0])
+//							{
+//								i++;
+//								UCA1TXBUF = GET_1(checksum);
+//							}
+//							else
+//							{
+//								UCA1TXBUF = GET_2(checksum);
+//								g_id = i = checksum = 0;
+//								if (!sync_len)
+//								{
+//									event_reg = UART_SEND_DONE;
+//									UCA1IE &= ~UCTXIE;
+//									header = 1;
+//									__delay_cycles(110);
+//									P2OUT &= ~BIT1;
+//								}
+//							}
+//							break;
+//						case 20:
+//							if (i < letter_s[0])
+//							{
+//								i++;
+//								UCA1TXBUF = letter_s[i];
+//								checksum_gen(letter_s[i]);
+//							}
+//							else if (i == letter_s[0])
+//							{
+//								i++;
+//								UCA1TXBUF = GET_1(checksum);
+//							}
+//							else
+//							{
+//								UCA1TXBUF = GET_2(checksum);
+//								g_id = i = checksum = 0;
+//								if (!sync_len)
+//								{
+//									event_reg = UART_SEND_DONE;
+//									UCA1IE &= ~UCTXIE;
+//									header = 1;
+//									__delay_cycles(110);
+//									P2OUT &= ~BIT1;
+//								}
+//							}
+//							break;
+//						case 21:
+//							if (i < letter_t[0])
+//							{
+//								i++;
+//								UCA1TXBUF = letter_t[i];
+//								checksum_gen(letter_t[i]);
+//							}
+//							else if (i == letter_t[0])
+//							{
+//								i++;
+//								UCA1TXBUF = GET_1(checksum);
+//							}
+//							else
+//							{
+//								UCA1TXBUF = GET_2(checksum);
+//								g_id = i = checksum = 0;
+//								if (!sync_len)
+//								{
+//									event_reg = UART_SEND_DONE;
+//									UCA1IE &= ~UCTXIE;
+//									header = 1;
+//									__delay_cycles(110);
+//									P2OUT &= ~BIT1;
+//								}
+//							}
+//							break;
+//						case 22:
+//							if (i < letter_u[0])
+//							{
+//								i++;
+//								UCA1TXBUF = letter_u[i];
+//								checksum_gen(letter_u[i]);
+//							}
+//							else if (i == letter_u[0])
+//							{
+//								i++;
+//								UCA1TXBUF = GET_1(checksum);
+//							}
+//							else
+//							{
+//								UCA1TXBUF = GET_2(checksum);
+//								g_id = i = checksum = 0;
+//								if (!sync_len)
+//								{
+//									event_reg = UART_SEND_DONE;
+//									UCA1IE &= ~UCTXIE;
+//									header = 1;
+//									__delay_cycles(110);
+//									P2OUT &= ~BIT1;
+//								}
+//							}
+//							break;
+//						case 23:
+//							if (i < letter_v[0])
+//							{
+//								i++;
+//								UCA1TXBUF = letter_v[i];
+//								checksum_gen(letter_v[i]);
+//							}
+//							else if (i == letter_v[0])
+//							{
+//								i++;
+//								UCA1TXBUF = GET_1(checksum);
+//							}
+//							else
+//							{
+//								UCA1TXBUF = GET_2(checksum);
+//								g_id = i = checksum = 0;
+//								if (!sync_len)
+//								{
+//									event_reg = UART_SEND_DONE;
+//									UCA1IE &= ~UCTXIE;
+//									header = 1;
+//									__delay_cycles(110);
+//									P2OUT &= ~BIT1;
+//								}
+//							}
+//							break;
+//						case 24:
+//							if (i < letter_x[0])
+//							{
+//								i++;
+//								UCA1TXBUF = letter_x[i];
+//								checksum_gen(letter_x[i]);
+//							}
+//							else if (i == letter_x[0])
+//							{
+//								i++;
+//								UCA1TXBUF = GET_1(checksum);
+//							}
+//							else
+//							{
+//								UCA1TXBUF = GET_2(checksum);
+//								g_id = i = checksum = 0;
+//								if (!sync_len)
+//								{
+//									event_reg = UART_SEND_DONE;
+//									UCA1IE &= ~UCTXIE;
+//									header = 1;
+//									__delay_cycles(110);
+//									P2OUT &= ~BIT1;
+//								}
+//							}
+//							break;
+//						case 25:
+//							if (i < letter_y[0])
+//							{
+//								i++;
+//								UCA1TXBUF = letter_y[i];
+//								checksum_gen(letter_y[i]);
+//							}
+//							else if (i == letter_y[0])
+//							{
+//								i++;
+//								UCA1TXBUF = GET_1(checksum);
+//							}
+//							else
+//							{
+//								UCA1TXBUF = GET_2(checksum);
+//								g_id = i = checksum = 0;
+//								if (!sync_len)
+//								{
+//									event_reg = UART_SEND_DONE;
+//									UCA1IE &= ~UCTXIE;
+//									header = 1;
+//									__delay_cycles(110);
+//									P2OUT &= ~BIT1;
+//								}
+//							}
+//							break;
 						default:
+							SYSTICK_STCSR &= ~SysTick_CTRL_TICKINT_Msk;		// turn off the scheduler (for now).
 							event_reg = ERROR;
 							UCA1IE &= ~(UCTXIE | UCRXIE);	// turn off interrupts
 							error |= BIT8;					// synchronization error
@@ -918,7 +926,7 @@ void uart()
 					event_reg = UART_SEND_DONE;
 					i = id = accum = sync_len = 0;
 					header = 1;
-					__delay_cycles(10);
+					__delay_cycles(110);
 					P2OUT &= ~BIT1;
 				}
 				break;
@@ -941,7 +949,7 @@ void uart()
 					UCA1TXBUF = ~accum;
 					i = accum = 0;
 					UCA1IE &= ~UCTXIE;
-					__delay_cycles(10);
+					__delay_cycles(110);
 					P2OUT &= ~BIT1;
 					UCA1IE |= UCRXIE;
 				}

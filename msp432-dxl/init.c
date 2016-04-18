@@ -65,9 +65,16 @@ void msp_init(void)
     P6OUT |= BIT6;
     P6IES |= BIT6;
     P6IE  |= BIT6;
+    P6IFG &= ~BIT6;
 
+    /* REMEMBER TO UNCOMMENT THIS FOR THE FINAL!
     P7DIR |= BIT3; 		// "ready" initialization
     P7DIR &= ~BIT3;
+	*/
+
+    /* remember to delete this for the final! */
+    P1DIR |= BIT5;
+    P1OUT &= ~BIT5;
 
     P2DIR |= BIT1; 		// "direction" initialization
     P2OUT &= ~BIT1;
@@ -77,6 +84,7 @@ void msp_init(void)
     P6OUT |= BIT7;
     P6IES |= BIT7;
     P6IE  |= BIT7;
+    P6IFG &= ~BIT7;
 
     P10DIR |= BIT0;		// "error" initialization
     P10OUT &= ~BIT0;
