@@ -11,9 +11,9 @@
 
 /* calculation functions */
 #define R2T(x) 		(((((180*x)/(0.29*PI)) + 0x200) > 0x3FF) ? 0x3FF : (((180*x)/(0.29*PI)) + 0x200))
-#define T2R(x)		((0.29*PI*(x-0x200))/180)
+#define T2R(x)		((0.29*PI*(x-0x200))/180) + (0.833*PI)
 #define MR2T(x)		(((((180*x)/(0.088*PI)) + 0x800) > 0xFFF) ? 0xFFF : (((180*x)/(0.088*PI)) + 0x800))
-#define MT2R(x)		((0.088*PI*(x-0x800))/180)
+#define MT2R(x)		((0.088*PI*(x-0x800))/180) + PI
 //#define S2T(x)		(((2.271f)/1000000)*x)
 
 #endif /* CALCULATIONS_H_ */

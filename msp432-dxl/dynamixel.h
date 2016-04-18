@@ -78,7 +78,14 @@ extern uint16_t checksum; 				// global checksum for communication protocol two
 #define BEGIN				'U'
 
 /* motor ids */
-#define WRIST			0x01
+#define WRIST			0x00
+#define WRIST_PITCH		0x01
+#define WRIST_ROLL		0x02
+#define ELBOW_PITCH		0x03
+#define ARM_YAW			0x04
+#define SHOULDER_ROLL1	0x05
+#define SHOULDER_ROLL2	0x06
+#define SHOULDER_PITCH	0x07
 #define THUMB_BASE 		0x10
 #define THUMB_KNUCKLE 	0x11
 #define THUMB_POINT		0x12

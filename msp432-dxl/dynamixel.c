@@ -923,7 +923,8 @@ void uart()
 				{
 					UCA1TXBUF = ~accum;
 					UCA1IE &= ~UCTXIE;
-					event_reg = UART_SEND_DONE;
+					/* CHANGE THIS BACK TO UART_SEND_DONE FOR FINAL! */
+					event_reg = UART_READ_DONE;
 					i = id = accum = sync_len = 0;
 					header = 1;
 					__delay_cycles(110);

@@ -101,33 +101,38 @@ void main(void)
     			float time_delta = queue[i].end_time - queue[i].start_time;
     			float rate;
     			uint16_t ticks;
+				float temp = (queue[i].goal_pos + (0.833*PI));
+				float temp1 = T2R(goal_positions[queue[i].jid]);
+				float temp2 = (queue[i].goal_pos + PI);
+				float temp3 = MT2R(goal_positions[queue[i].jid]);
     			if (!queue[i].jid)
     			{
 					if (goal_positions[queue[i].jid] >= R2T(queue[i].goal_pos))
-						rad_delta = T2R(goal_positions[queue[i].jid]) - queue[i].goal_pos;
+						rad_delta = temp1 - temp;
 					else
-						rad_delta = queue[i].goal_pos - T2R(goal_positions[queue[i].jid]);
+						rad_delta = temp - temp1;
 					rate = (270000000/PI)*(rad_delta/time_delta);		// now in ticks.
 					if (rate > 0x3FF)
 						rate = 0x3FF;
-					ticks = R2T(rad_delta);
+					ticks = R2T(queue[i].goal_pos);
     			}
     			else
     			{
     				if (goal_positions[queue[i].jid] >= MR2T(queue[i].goal_pos))
-    					rad_delta = MT2R(goal_positions[queue[i].jid]) - queue[i].goal_pos;
+    					rad_delta = temp3 - temp2;
     				else
-    					rad_delta = queue[i].goal_pos - MT2R(goal_positions[queue[i].jid]);
+    					rad_delta = temp2 - temp3;
     				rate = (270000000/PI)*(rad_delta/time_delta);		// now in ticks.
     				if (rate > 0x3FF)
     					rate = 0x3FF;
-    				ticks = MR2T(rad_delta);
+    				ticks = MR2T(queue[i].goal_pos);
     			}
 
     			/* now store in data queue */
     			buffer[i].jid = queue[i].jid;
     			buffer[i].position = goal_positions[buffer[i].jid] = ticks;
     			buffer[i].speed = rate;
+    			buffer[i].start_time = queue[i].start_time;
     		}
     	}
     	/* since we changed some values in the goal_positions[] array,
@@ -143,6 +148,7 @@ void main(void)
     			goal_positions[i] = 0x800;
     	}
     	buffer[len].jid = 0xFF; 			// stopping call for scheduler
+    	/* DELETE THE LINE BELOW THIS FOR THE FINAL AND UNCOMMENT P7OUT |= BIT3 */
     	P1OUT |= BIT5;
     	//P7OUT |= BIT3; 					// we're ready!
     	while(event_reg != BEGIN);
@@ -454,26 +460,16 @@ void scheduler()
 				{
 					if (buffer[i].start_time == curr_time) // make sure that this is meant to send out now
 					{
-						if (!g_id)
-						{
-							sync_ids[i] = buffer[i].jid;
-							sync_positions[i] = goal_positions[buffer[i].jid] = buffer[i].position;
-							sync_speeds[i] = buffer[i].speed;
-							sync_len++;
-							if ((buffer[i+1].jid == 0xFF) || (buffer[i+1].jid == 0xFD) ||
-							   ((buffer[i+1].jid == 0xFE) && (buffer[i+1].gstart_time != curr_time)) ||
-							   ((buffer[i+1].jid < 0x08) && (buffer[i+1].start_time != curr_time)))		// if next ones aren't motor moves...
-								UCA1IE |= UCTXIE;
-							else
-								i++;
-						}
+						sync_ids[sync_len] = buffer[i].jid;
+						sync_positions[sync_len] = goal_positions[buffer[i].jid] = buffer[i].position;
+						sync_speeds[sync_len] = buffer[i].speed;
+						sync_len++;
+						if ((buffer[i+1].jid == 0xFF) || (buffer[i+1].jid == 0xFD) ||
+						   ((buffer[i+1].jid == 0xFE) && (buffer[i+1].gstart_time != curr_time)) ||
+						   ((buffer[i+1].jid < 0x08) && (buffer[i+1].start_time != curr_time)))		// if next ones aren't motor moves...
+							UCA1IE |= UCTXIE;
 						else
-						{
-							SYSTICK_STCSR &= ~SysTick_CTRL_TICKINT_Msk;		// turn off the scheduler (for now).
-							UCA1IE &= ~(UCTXIE | UCRXIE);
-							error |= BIT7;
-							P10OUT |= BIT0;
-						}
+							i++;
 					}
 					else										// if not, just send out what we have now
 					{
