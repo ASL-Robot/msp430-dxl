@@ -75,12 +75,11 @@ void main(void)
 {
 	uint8_t i;
 	msp_init();
-	// delete the line below for final!
-	UCA3IE |= UCRXIE;
 	//dynamixel_init();
     while(1)
     {
-    	event_reg = UART_READY;
+    	UCA3IE |= UCRXIE;
+    	//event_reg = UART_READY;
     	while(waiting);
     	for (i = 0; i < len; i++)
     	{
@@ -155,6 +154,7 @@ void main(void)
     	event_reg = UART_READY;
 		while(event_reg != DONE);
 		waiting = 1;
+		i = 0;
 		P6IE |= BIT6;
     }
 }
@@ -192,7 +192,7 @@ void spi()
 						if ((r_i-2) == (13*num_moves)-1)
 						{
 							packet_type = waiting = 0;
-							len = (r_i-2)/(13-1);
+							len = (r_i-1)/(13);
 						}
 						else
 							r_i++;
@@ -286,7 +286,7 @@ void scheduler()
 				/* the last item in the buffer! */
 				if (buffer[i].jid == 0xFF)
 				{
-					if (time_out == 750) 		// time out of approximately 4.5 seconds
+					if (time_out == 333) 		// time out of approximately 4.5 seconds
 					{
 						for (j = 0; j < 8; j++)
 						{
@@ -297,7 +297,9 @@ void scheduler()
 							else
 								sync_positions[j] = goal_positions[j] = 0x800;
 						}
+						sync_len = 8;
 						g_id = open_id;
+						xl_len = open[0] + 7;
 						UCA1IE |= UCTXIE;		// turn on tx interrupts
 						time_out = 0;			// make time_out zero
 					}
@@ -313,11 +315,11 @@ void scheduler()
 						g_id = buffer[i].gesture;	   	 // load gesture into shared memory
 						switch(g_id)
 						{
-							case 1: xl_len = curl[0] + 7; break;
+//							case 1: xl_len = curl[0] + 7; break;
 							case 2: xl_len = open[0] + 7; break;
-							case 3: xl_len = thumbs_up[0] + 7; break;
-							case 4: xl_len = point[0] + 7; break;
-							case 5: xl_len = okay[0] + 7; break;
+//							case 3: xl_len = thumbs_up[0] + 7; break;
+//							case 4: xl_len = point[0] + 7; break;
+//							case 5: xl_len = okay[0] + 7; break;
 							case 6: xl_len = letter_a[0] + 7; break;
 							case 7: xl_len = letter_b[0] + 7; break;
 							case 8: xl_len = letter_c[0] + 7; break;
@@ -331,13 +333,13 @@ void scheduler()
 							case 16: xl_len = letter_l[0] + 7; break;
 							case 17: xl_len = letter_n[0] + 7; break;
 							case 18: xl_len = letter_o[0] + 7; break;
-//							case 19: xl_len = letter_r[0] + 7; break;
-//							case 20: xl_len = letter_s[0] + 7; break;
-//							case 21: xl_len = letter_t[0] + 7; break;
-//							case 22: xl_len = letter_u[0] + 7; break;
-//							case 23: xl_len = letter_v[0] + 7; break;
-//							case 24: xl_len = letter_x[0] + 7; break;
-//							case 25: xl_len = letter_y[0] + 7; break;
+							case 19: xl_len = letter_r[0] + 7; break;
+							case 20: xl_len = letter_s[0] + 7; break;
+							case 21: xl_len = letter_t[0] + 7; break;
+							case 22: xl_len = letter_u[0] + 7; break;
+							case 23: xl_len = letter_v[0] + 7; break;
+							case 24: xl_len = letter_x[0] + 7; break;
+							case 25: xl_len = letter_y[0] + 7; break;
 							default:
 								SYSTICK_STCSR &= ~SysTick_CTRL_TICKINT_Msk;		// turn off the scheduler (for now).
 								event_reg = ERROR;
@@ -505,19 +507,19 @@ void scheduler()
 					event_reg = UART_READY;
 					if (buffer[i+1].jid == 0xFE)
 					{
-						curr_time = buffer[i+1].gstart_time;
-						if (((curr_time)/1000) > 6)
-							wait_time = (curr_time/6000)-1;
+						if (((buffer[i+1].gstart_time - curr_time)/1000) > 6)
+							wait_time = ((buffer[i+1].gstart_time - curr_time)/6000)-1;
 						else
 							wait_time = 0;
+						curr_time = buffer[i+1].gstart_time;
 					}
 					else if (buffer[i+1].jid < 0x08)
 					{
-						curr_time = buffer[i+1].start_time;
-						if (((curr_time)/1000) > 6)
-							wait_time = (curr_time/6000)-1;
+						if (((buffer[i+1].start_time - curr_time)/1000) > 6)
+							wait_time = ((buffer[i+1].start_time - curr_time)/6000)-1;
 						else
 							wait_time = 0;
+						curr_time = buffer[i+1].start_time;
 					}
 					i++;
 				}
