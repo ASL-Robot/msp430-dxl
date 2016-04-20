@@ -128,7 +128,7 @@ uint8_t letter_h[46] = { 45, THUMB_BASE, GET_1(R2T(-(PI/2.25))), GET_2(R2T(-(PI/
 
 uint8_t letter_i[46] = { 45, THUMB_BASE, 0x00, 0x02, 0x50, 0x01,
 							 THUMB_KNUCKLE, 0x00, 0x02, 0x50, 0x01,
-							 THUMB_POINT, GET_1(R2T(-(PI/6))), GET_2(R2T(-(PI/6))), 0x01,
+							 THUMB_POINT, GET_1(R2T(-(PI/6))), GET_2(R2T(-(PI/6))), 0x50, 0x01,
 							 PINKY_BASE, 0x00, 0x02, 0x50, 0x01,
 							 PINKY_KNUCKLE, 0x00, 0x02, 0x50, 0x01,
 							 PINKY_POINT, 0x00, 0x02, 0x50, 0x01,
