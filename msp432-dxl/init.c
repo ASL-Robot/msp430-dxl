@@ -122,6 +122,6 @@ void dynamixel_init(void)
 	event_reg = UART_READ;							// tell the UART to send a read
 	UCA1IE |= UCTXIE; 								// turn on sending interrupts.
 	while(event_reg != UART_READ_DONE);				// sleep while reading; we can take as much time as we need.
-	event_reg = UART_READY;
+	//event_reg = UART_READY;
     UCA3IE |= UCRXIE;								// we can now turn on spi receive
 }

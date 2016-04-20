@@ -61,8 +61,8 @@ typedef struct __attribute__((__packed__))
 } processed;
 
 /* arrays */
-raw_data queue[60];
-processed buffer[60];
+raw_data queue[200];
+processed buffer[200];
 
 /* communication flags and variables*/
 uint8_t waiting = 1;
@@ -79,7 +79,6 @@ void main(void)
     while(1)
     {
     	UCA3IE |= UCRXIE;
-    	//event_reg = UART_READY;
     	while(waiting);
     	for (i = 0; i < len; i++)
     	{
@@ -104,7 +103,7 @@ void main(void)
 				float temp1 = T2R(goal_positions[queue[i].jid]);
 				float temp2 = (queue[i].goal_pos + PI);
 				float temp3 = MT2R(goal_positions[queue[i].jid]);
-    			if (!queue[i].jid)
+    			if ((!queue[i].jid) || (queue[i].jid == 1))
     			{
 					if (goal_positions[queue[i].jid] >= R2T(queue[i].goal_pos))
 						rad_delta = temp1 - temp;
@@ -141,7 +140,7 @@ void main(void)
     	 */
     	for (i = 0; i < 8; i++)
     	{
-    		if (!i)
+    		if ((!i) || (i == 1))
     			goal_positions[i] = 0x200;
     		else
     			goal_positions[i] = 0x800;
@@ -313,22 +312,23 @@ void scheduler()
 					if (buffer[i].gstart_time == curr_time) // make sure that this is meant to send out now
 					{
 						g_id = buffer[i].gesture;	   	 // load gesture into shared memory
+
+						/* we can't do w or m. :( */
 						switch(g_id)
 						{
-//							case 1: xl_len = curl[0] + 7; break;
 							case 2: xl_len = open[0] + 7; break;
-//							case 3: xl_len = thumbs_up[0] + 7; break;
-//							case 4: xl_len = point[0] + 7; break;
-//							case 5: xl_len = okay[0] + 7; break;
 							case 6: xl_len = letter_a[0] + 7; break;
 							case 7: xl_len = letter_b[0] + 7; break;
 							case 8: xl_len = letter_c[0] + 7; break;
+							case 28: 			 	 	 	 	 	    /* z is just d with wrist motion */
 							case 9: xl_len = letter_d[0] + 7; break;
 							case 10: xl_len = letter_e[0] + 7; break;
 							case 11: xl_len = letter_f[0] + 7; break;
 							case 12: xl_len = letter_g[0] + 7; break;
 							case 13: xl_len = letter_h[0] + 7; break;
+							case 26: 									/* j is just i with wrist motion */
 							case 14: xl_len = letter_i[0] + 7; break;
+							case 27: 									/* p is just k with wrist motion */
 							case 15: xl_len = letter_k[0] + 7; break;
 							case 16: xl_len = letter_l[0] + 7; break;
 							case 17: xl_len = letter_n[0] + 7; break;
@@ -438,14 +438,14 @@ void scheduler()
 					}
 					else	// at least one of the motors is lagging a little.
 					{
-						if (time_out < 135) // if it's been less than 800 ms, let it slide.
+						if (time_out < 175) // if it's been less than one second, let it slide.
 						{
 							time_out++;
 							event_reg = READ;
 							UCA1IE |= UCTXIE;
 							read_id = 0;
 						}
-						else 	// it's been more than 800 ms and a motor still hasn't gotten to its final position; there's a problem.
+						else 	// it's been more than one second and a motor still hasn't gotten to its final position; there's a problem.
 						{
 							SYSTICK_STCSR &= ~SysTick_CTRL_TICKINT_Msk;		// turn off the scheduler (for now).
 							UCA1IE &= ~(UCTXIE | UCRXIE);
@@ -488,7 +488,7 @@ void scheduler()
 			case UART_READ_DONE:
 				for (j = 0; j < 8; j++)
 				{
-					if (!j)
+					if ((!j) || (j == 1))
 						rad_readings[j] = T2R(readings[i]); 				// convert all readings to radians
 					else
 						rad_readings[j] = MT2R(readings[i]);

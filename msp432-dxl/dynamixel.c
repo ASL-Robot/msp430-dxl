@@ -427,6 +427,7 @@ void uart()
 								}
 							}
 							break;
+						case 28:
 						case 9:
 							if (i < letter_d[0])
 							{
@@ -562,6 +563,7 @@ void uart()
 								}
 							}
 							break;
+						case 26:
 						case 14:
 							if (i < letter_i[0])
 							{
@@ -589,6 +591,7 @@ void uart()
 								}
 							}
 							break;
+						case 27:
 						case 15:
 							if (i < letter_k[0])
 							{
