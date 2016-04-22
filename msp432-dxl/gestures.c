@@ -168,7 +168,7 @@ uint8_t letter_n[56] = { 55, THUMB_BASE, 0x00, 0x02, 0x00, 0x02,
 			 	  	   	     PINKY_SPADE, GET_1(R2T(-(PI/6.5))), GET_2(R2T(-(PI/6.5))), 0x50, 0x01,
 	 	  	   	   	    	 INDEX_SPADE, GET_1(R2T(PI/6)), GET_2(R2T(PI/6)), 0x50, 0x01 };
 
-uint8_t letter_o[46] = { 45, THUMB_BASE, GET_1(R2T(-(PI/2)))+2, GET_2(R2T(-(PI/2)))+2, 0x00, 0x02,
+uint8_t letter_o[46] = { 45, THUMB_BASE, GET_1(R2T(-(PI/2)))+2, GET_2(R2T(-(PI/2))), 0x00, 0x02,
 							 THUMB_KNUCKLE, GET_1(R2T(PI/4)), GET_2(R2T(PI/4)), 0x50, 0x01,
 							 THUMB_POINT, GET_1(R2T(-(PI/4))), GET_2(R2T(-(PI/4))), 0x50, 0x01,
 							 PINKY_BASE, GET_1(R2T(PI/8)), GET_2(R2T(PI/8)), 0x50, 0x01,

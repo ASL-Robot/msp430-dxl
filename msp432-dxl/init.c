@@ -109,7 +109,7 @@ void dynamixel_init(void)
 	{
 		sync_ids[j] = j;
 		sync_speeds[j] = 0x100;
-		if (!j)
+		if ((!j) || (j == 1))
 			sync_positions[j] = goal_positions[j] = 0x200;
 		else
 			sync_positions[j] = goal_positions[j] = 0x800;

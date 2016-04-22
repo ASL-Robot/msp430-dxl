@@ -152,6 +152,7 @@ void main(void)
     	while(event_reg != BEGIN);
     	event_reg = UART_READY;
 		while(event_reg != DONE);
+		event_reg = UART_READY;
 		waiting = 1;
 		i = 0;
 		P6IE |= BIT6;
@@ -290,8 +291,8 @@ void scheduler()
 						for (j = 0; j < 8; j++)
 						{
 							sync_ids[j] = j;
-							sync_speeds[j] = 0x150;
-							if (!j)
+							sync_speeds[j] = 0x50;
+							if ((!j) || (j == 1))
 								sync_positions[j] = goal_positions[j] = 0x200;
 							else
 								sync_positions[j] = goal_positions[j] = 0x800;
@@ -324,6 +325,7 @@ void scheduler()
 							case 9: xl_len = letter_d[0] + 7; break;
 							case 10: xl_len = letter_e[0] + 7; break;
 							case 11: xl_len = letter_f[0] + 7; break;
+							case 29: 			 	 	 	 	 	 	/* q is just g with wrist motion */
 							case 12: xl_len = letter_g[0] + 7; break;
 							case 13: xl_len = letter_h[0] + 7; break;
 							case 26: 									/* j is just i with wrist motion */

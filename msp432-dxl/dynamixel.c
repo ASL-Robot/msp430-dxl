@@ -23,7 +23,7 @@ uint8_t event_reg = UART_READY;
 uint8_t sync_ids[8] = { 0 };				// load sync write ids here
 uint16_t sync_positions[8] = { 0 };			// load sync write positions here
 uint16_t sync_speeds[8] = { 0 };			// load sync write speeds here
-uint16_t goal_positions[8] = { 0x200, 0x800, 0x800, 0x800, 0x800, 0x800, 0x800, 0x800 }; // load theoretical goal positions here
+uint16_t goal_positions[8] = { 0x200, 0x200, 0x800, 0x800, 0x800, 0x800, 0x800, 0x800 }; // load theoretical goal positions here
 uint8_t sync_len = 0;						// load sync write length here
 uint8_t xl_len = 0; 						// load length of xl parameters here
 
@@ -509,6 +509,7 @@ void uart()
 								}
 							}
 							break;
+						case 29:
 						case 12:
 							if (i < letter_g[0])
 							{
@@ -948,7 +949,7 @@ void uart()
 					UCA1IE &= ~UCTXIE;
 					/* CHANGE THIS BACK TO UART_SEND_DONE FOR FINAL! */
 					event_reg = UART_READ_DONE;
-					i = id = accum = sync_len = 0;
+					i = id = accum = sync_len = g_id = checksum = 0;
 					header = 1;
 					__delay_cycles(140);
 					P2OUT &= ~BIT1;
