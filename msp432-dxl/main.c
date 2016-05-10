@@ -286,12 +286,12 @@ void scheduler()
 				/* the last item in the buffer! */
 				if (buffer[i].jid == 0xFF)
 				{
-					if (time_out == 333) 		// time out of approximately 4.5 seconds
+					if (time_out == 333) 		// time out of approximately two seconds
 					{
 						for (j = 0; j < 8; j++)
 						{
 							sync_ids[j] = j;
-							sync_speeds[j] = 0x50;
+							sync_speeds[j] = 0x050;
 							if ((!j) || (j == 1))
 								sync_positions[j] = goal_positions[j] = 0x200;
 							else
